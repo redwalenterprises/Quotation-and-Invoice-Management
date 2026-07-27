@@ -1,0 +1,169 @@
+import React from 'react';
+import { rowCalc } from '../utils/calculations';
+import { amountToWords } from '../utils/numberToWords';
+import './InvoicePrint.css'; // Make sure to import the CSS file
+
+const BUSINESS_NAME = 'Salon Chair Wala';
+const BUSINESS_LOGO = '/logo.webp'; // e.g., '/logo.png'
+const BUSINESS_PHONE = '206, F4 Building, Bhumi World, Bhiwandi Bypass, Maharashtra';
+
+function formatCurrency(n) {
+  return `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+export default function InvoicePrint({ invoice, onBack }) {
+  const items = invoice.items || [];
+
+  // Optimized single-pass calculation
+  const totals = items.reduce(
+    (acc, r) => {
+      const c = rowCalc(r);
+      return {
+        base: acc.base + (c.base || 0),
+        discount: acc.discount + (c.discountAmount || 0),
+        tax: acc.tax + (c.taxAmount || 0),
+        amount: acc.amount + (c.amount || 0),
+        qtyTotal: acc.qtyTotal + (Number(r.qty) || 0),
+      };
+    },
+    { base: 0, discount: 0, tax: 0, amount: 0, qtyTotal: 0 }
+  );
+
+  const paid = Number(invoice.paidAmount || 0);
+  const balance = Number(invoice.total || 0) - paid;
+
+  return (
+    <div className="invoice-page">
+      {/* Non-printable Toolbar */}
+      <div className="print-toolbar no-print">
+        <button className="btn btn-secondary" onClick={onBack}>
+          &larr; Back
+        </button>
+        <button className="btn btn-primary" onClick={() => window.print()}>
+          🖨 Print / Save as PDF
+        </button>
+      </div>
+
+      {/* Printable Invoice Sheet */}
+      <div className="invoice-sheet">
+        
+        {/* Header Section */}
+        <header className="invoice-header">
+          <div className="invoice-brand">
+            {BUSINESS_LOGO && <img src={BUSINESS_LOGO} alt="logo" className="invoice-logo" />}
+            <div>
+              <h2 className="invoice-business-name">{BUSINESS_NAME}</h2>
+              {BUSINESS_PHONE && <p className="invoice-meta"> {BUSINESS_PHONE}</p>}
+            </div>
+          </div>
+          <div className="invoice-title-wrapper">
+            <h1 className="invoice-title">TAX INVOICE</h1>
+          </div>
+        </header>
+
+        {/* Parties Details */}
+        <div className="invoice-parties">
+          <div className="party-box">
+            <span className="party-label">Billed To:</span>
+            <p className="party-name">{invoice.partyName || 'Cash Client'}</p>
+            {invoice.partyPhone && <p className="invoice-meta">Contact: {invoice.partyPhone}</p>}
+          </div>
+          <div className="party-box align-right">
+            <span className="party-label">Invoice Details:</span>
+            <p className="invoice-meta"><strong>Date:</strong> {invoice.date || new Date().toLocaleDateString()}</p>
+            {invoice.invoiceNumber && <p className="invoice-meta"><strong>Inv No:</strong> {invoice.invoiceNumber}</p>}
+          </div>
+        </div>
+
+        {/* Items Table */}
+        <div className="table-container">
+          <table className="invoice-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Item Description</th>
+                <th>HSN/SAC</th>
+                <th className="text-right">Qty</th>
+                <th className="text-right">Rate</th>
+                <th className="text-right">Discount</th>
+                <th className="text-right">GST</th>
+                <th className="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((row, i) => {
+                const c = rowCalc(row);
+                return (
+                  <tr key={i}>
+                    <td>{i + 1}</td>
+                    <td className="item-name">{row.item}</td>
+                    <td>{row.hsn || '-'}</td>
+                    <td className="text-right">{row.qty}</td>
+                    <td className="text-right">{formatCurrency(row.price)}</td>
+                    <td className="text-right">{formatCurrency(c.discountAmount)}</td>
+                    <td className="text-right">
+                      {c.taxPercent > 0 ? `${c.taxPercent}% (${formatCurrency(c.taxAmount)})` : '-'}
+                    </td>
+                    <td className="text-right amount-col">{formatCurrency(c.amount)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="invoice-total-row">
+                <td colSpan={3} className="text-right"><strong>Total Qty:</strong></td>
+                <td className="text-right"><strong>{totals.qtyTotal}</strong></td>
+                <td></td>
+                <td className="text-right">{formatCurrency(totals.discount)}</td>
+                <td className="text-right">{formatCurrency(totals.tax)}</td>
+                <td className="text-right amount-col">{formatCurrency(totals.amount)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* Footer & Calculation Section */}
+        <div className="invoice-footer">
+          <div className="amount-words">
+            <span className="party-label">Amount In Words:</span>
+            <p>{amountToWords(invoice.total)}</p>
+          </div>
+
+          <div className="invoice-summary">
+            <div className="summary-row">
+              <span>Sub Total</span>
+              <span>{formatCurrency(totals.base - totals.discount)}</span>
+            </div>
+            <div className="summary-row">
+              <span>Total GST</span>
+              <span>{formatCurrency(totals.tax)}</span>
+            </div>
+            <div className="summary-row grand-total">
+              <span>Grand Total</span>
+              <span>{formatCurrency(invoice.total)}</span>
+            </div>
+            {paid > 0 && (
+              <div className="summary-row text-success">
+                <span>Amount Paid</span>
+                <span>-{formatCurrency(paid)}</span>
+              </div>
+            )}
+            <div className="summary-row balance-due">
+              <span>Balance Due</span>
+              <span>{formatCurrency(balance)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Signatures */}
+        <div className="invoice-signatures">
+          <div className="signature-box">
+            <p className="sign-for">For {BUSINESS_NAME}</p>
+            <div className="sign-line"></div>
+            <p className="sign-label">Authorized Signatory</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
