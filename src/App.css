@@ -244,6 +244,8 @@ input:focus, select:focus { border-color: var(--accent); }
 .meta-input { width: 160px; padding: 7px 10px; font-size: 13px; }
 
 .total-controls { display: flex; align-items: center; gap: 10px; }
+.total-controls-stacked { flex-direction: column; align-items: flex-end; gap: 10px; }
+.total-controls-row { display: flex; align-items: center; gap: 10px; }
 .roundoff-input { width: 70px; text-align: right; font-size: 13px; padding: 7px 10px; }
 .total-input {
   width: 130px; text-align: right; font-weight: 600; font-size: 15px;
@@ -778,4 +780,666 @@ textarea:focus { border-color: var(--accent); }
 .item-modal-top-row .unit-select-btn {
   flex: 0 0 130px;
   width: 130px;
+}
+
+/* ==========================================
+   DESKTOP SPREADSHEET TABLE & BILLING LOOK
+   ========================================== */
+
+/* Top Header Bar */
+.billing-top-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 12px;
+}
+
+.billing-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.payment-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1976d2;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 20px;
+}
+
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #1976d2;
+  transition: .3s;
+  border-radius: 20px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 14px; width: 14px;
+  left: 3px; bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider:before { transform: translateX(18px); }
+
+/* Compact Party & Header Block */
+.details-box {
+  background: #f4f5f8;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  border-radius: 4px;
+}
+
+.party-inputs-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.compact-input-field {
+  background: #ffffff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 13px;
+  width: 200px;
+  outline: none;
+}
+
+.invoice-meta-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 240px;
+}
+
+.meta-inline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #666;
+}
+
+.meta-inline-row input, .meta-inline-row select {
+  border: none;
+  border-bottom: 1px solid #ccc;
+  background: transparent;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 2px 4px;
+  outline: none;
+  width: 120px;
+}
+
+/* Zero-Gap Spreadsheet Table */
+.desktop-table-wrapper {
+  background: #fff;
+  border: 1px solid #dcdcdc;
+  overflow-x: auto;
+}
+
+.spreadsheet-grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: #ffffff;
+}
+
+.spreadsheet-grid-table th, 
+.spreadsheet-grid-table td {
+  border: 1px solid #e0e0e0;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.spreadsheet-grid-table th {
+  background-color: #f8f9fa;
+  color: #555;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.spreadsheet-grid-table input,
+.spreadsheet-grid-table select {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: #222;
+  padding: 0;
+  margin: 0;
+}
+
+.spreadsheet-grid-table input:focus,
+.spreadsheet-grid-table select:focus {
+  background: #e8f0fe;
+}
+
+.col-center { text-align: center !important; }
+.col-right { text-align: right !important; }
+
+.table-footer-row td {
+  background-color: #f8f9fa !important;
+  font-weight: 700;
+  font-size: 12px;
+  border-top: 2px solid #ccc;
+}
+
+.btn-add-row-blue {
+  border: 1px solid #1976d2;
+  color: #1976d2;
+  background: #ffffff;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+/* ==========================================
+   SPACIOUS & FULL SCREEN WIDE LAYOUT (KHULA-KHULA DESIGN)
+   ========================================== */
+
+/* Main Container ko thoda aur breathing space diya hai */
+.billing-full-screen-wrapper {
+  width: 100vw;
+  min-height: 100vh;
+  margin: 0;
+  padding: 30px 40px; /* Sides aur top par zyada gap */
+  background-color: #f4f5f8;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+.billing-full-screen-wrapper * {
+  box-sizing: border-box;
+}
+
+/* Top Bar Styling */
+.billing-top-bar {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  margin-bottom: 24px; /* Title aur form ke beech zyada jagah */
+}
+
+.billing-title {
+  font-size: 24px; /* Font bada kiya */
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.payment-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px; /* Toggle text bada kiya */
+  font-weight: 600;
+  color: #1976d2;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #1976d2;
+  transition: .3s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px; width: 18px;
+  left: 3px; bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider:before { transform: translateX(20px); }
+
+/* Header Party & Meta Section */
+.details-box-wide {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 30px; /* Table aur iske beech zyada gap */
+  width: 100%;
+  background: #ffffff;
+  padding: 20px 24px; /* Box ke andar gap banaya */
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+
+.party-inputs-group {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.compact-input-field {
+  background: #fcfcfc;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 12px 16px; /* Text box lamba aur chauda kiya */
+  font-size: 15px; /* Font size increase */
+  width: 300px; /* Width increase */
+  outline: none;
+}
+
+.compact-input-field:focus {
+  border-color: #1976d2;
+  background: #fff;
+}
+
+.invoice-meta-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Rows ke beech gap */
+  min-width: 300px;
+}
+
+.meta-inline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px; /* Font size increase */
+  color: #555;
+}
+
+.meta-inline-row label {
+  color: #757575;
+}
+
+.meta-inline-row input, .meta-inline-row select {
+  border: none;
+  border-bottom: 1px solid #ccc;
+  background: transparent;
+  text-align: right;
+  font-size: 15px; /* Data text increase */
+  font-weight: 600;
+  padding: 4px 8px;
+  outline: none;
+  width: 150px;
+}
+
+/* Full Width Table Wrapper */
+.desktop-table-wrapper {
+  background: #fff;
+  border: 1px solid #dcdcdc;
+  width: 100%;
+  margin-bottom: 40px; /* Table ke baad neeche free space */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.spreadsheet-grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: #ffffff;
+}
+
+.spreadsheet-grid-table th, 
+.spreadsheet-grid-table td {
+  border: 1px solid #e0e0e0;
+  padding: 16px 14px; /* ROWS KO TALL/BADA KIYA YAHAN SE */
+  text-align: left;
+  vertical-align: middle;
+}
+
+.spreadsheet-grid-table th {
+  background-color: #f8f9fa;
+  color: #444;
+  font-weight: 700;
+  font-size: 13px; /* Header thoda bada kiya */
+  letter-spacing: 0.5px;
+}
+
+.spreadsheet-grid-table input,
+.spreadsheet-grid-table select {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px; /* Table ke andar text bada kiya */
+  font-weight: 500;
+  color: #222;
+  padding: 4px 0;
+  margin: 0;
+}
+
+.spreadsheet-grid-table input:focus,
+.spreadsheet-grid-table select:focus {
+  background: #e8f0fe;
+  padding-left: 4px;
+  border-radius: 4px;
+}
+
+.col-center { text-align: center !important; }
+.col-right { text-align: right !important; }
+
+.table-footer-row td {
+  background-color: #fcfcfc !important;
+  font-weight: 700;
+  font-size: 14px;
+  border-top: 2px solid #ccc;
+  padding: 14px !important;
+}
+
+.btn-add-row-blue {
+  border: 1px solid #1976d2;
+  color: #1976d2;
+  background: #ffffff;
+  font-weight: 700;
+  padding: 8px 16px; /* Button bada kiya */
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: 0.2s;
+}
+
+.btn-add-row-blue:hover {
+  background: #e3f2fd;
+}
+
+/* Lower Section - Terms & Totals */
+.desktop-bottom-layout {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 40px;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.bottom-left-terms {
+  width: 320px;
+  background: #fff;
+  border: 1px solid #dcdcdc;
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.bottom-left-terms h4 {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  color: #333;
+}
+
+.bottom-left-terms textarea {
+  width: 100%;
+  border: 1px solid #eee;
+  background: #fafafa;
+  resize: vertical;
+  outline: none;
+  font-size: 14px; /* Textarea font bada kiya */
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.bottom-middle-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 200px;
+}
+
+.action-outline-btn {
+  background: #fff;
+  border: 1px dashed #ccc;
+  padding: 12px; /* Buttons zyada padded */
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  text-align: center;
+  border-radius: 6px;
+  transition: 0.2s;
+}
+
+.action-outline-btn:hover {
+  border-color: #1976d2;
+  color: #1976d2;
+  background: #f4f9ff;
+}
+
+.bottom-right-totals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+  min-width: 300px;
+}
+
+.total-row-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  font-size: 15px; /* Totals ke fonts bade */
+}
+
+.total-row-item label {
+  font-weight: 600;
+  color: #444;
+}
+
+.total-row-item input {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 10px 14px; /* Input boxes bade */
+  text-align: right;
+  font-weight: 700;
+  font-size: 15px;
+  width: 150px;
+  background: #fff;
+}
+
+.final-save-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 40px; /* Neeche khali jagah ko fill karne ke liye gap */
+  width: 100%;
+}
+
+.final-save-footer button {
+  padding: 12px 32px !important; /* Save/Cancel Buttons ko bada kiya */
+  font-size: 15px !important;
+  border-radius: 6px !important;
+}
+
+/* Hide/Show logic for Mobile Responsive support */
+@media (max-width: 768px) {
+  .billing-full-screen-wrapper { padding: 16px; }
+  .desktop-table-wrapper, .details-box-wide, .desktop-bottom-layout { display: none !important; }
+  .mobile-cards-wrapper { display: block !important; }
+}
+
+@media (min-width: 769px) {
+  .mobile-cards-wrapper { display: none !important; }
+}
+
+.dots-btn {
+  font-size: 18px;
+  font-weight: 700;
+  padding: 4px 10px;
+}
+
+.row-menu {
+  position: absolute;
+  top: 100%;
+  right: 8px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  z-index: 50;
+  min-width: 140px;
+  overflow: hidden;
+}
+
+.row-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.row-menu-item:hover {
+  background: var(--bg);
+}
+
+.row-menu-danger {
+  color: var(--danger, #EB5757);
+}
+
+.table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.table-toolbar h3 {
+  font-size: 15px;
+  font-weight: 600;
+}
+.table-toolbar-icons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.table-icon-btn {
+  background: none;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 6px;
+  border-radius: 6px;
+}
+.table-icon-btn:hover:not(:disabled) {
+  background: var(--bg);
+  color: var(--text);
+}
+.table-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.xls-icon {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--success);
+  color: var(--white);
+  padding: 4px 8px;
+}
+.xls-icon:disabled {
+  opacity: 0.5;
+}
+.table-search-input {
+  margin-bottom: 16px;
+  max-width: 320px;
+}
+
+/* Flat table container - no card border/shadow/rounding, matching reference */
+.table-card-plain {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 24px 0;
+}
+
+/* Grid-style header cells with vertical dividers */
+.vyapar-table th {
+  border-right: 1px solid var(--border);
+  padding: 13px 12px;
+  font-size: 13px;
+}
+.vyapar-table th:last-child {
+  border-right: none;
+}
+.vyapar-table td {
+  padding: 14px 12px;
+  font-size: 14px;
+}
+
+.table-toolbar {
+  padding: 0 4px;
+}
+.table-toolbar h3 {
+  font-size: 16px;
+}
+
+/* ===== FINAL Transactions table fix (append at very end, overrides everything above) ===== */
+
+.vyapar-table thead tr {
+  background: #FAFAFA !important;
+}
+
+.vyapar-table th {
+  border-right: 1px solid var(--border) !important;
+  padding: 13px 14px !important;
+}
+
+.vyapar-table th:last-child {
+  border-right: none !important;
+}
+
+.th-with-filter {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.th-with-filter svg {
+  width: 11px !important;
+  height: 11px !important;
+  opacity: 0.5 !important;
+  flex-shrink: 0;
 }

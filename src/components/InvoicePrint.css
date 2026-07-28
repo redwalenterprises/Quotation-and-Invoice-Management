@@ -159,7 +159,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
   gap: 2rem;
 }
 
@@ -198,23 +198,50 @@
 .balance-due {
   font-size: 1rem;
   font-weight: 700;
-  color: #dc2626; /* Red color for balance due */
+  color: #dc2626;
   background-color: #fee2e2;
   padding: 0.5rem;
   border-radius: 4px;
   margin-top: 0.5rem;
 }
 
+/* Bottom Section (Terms & Signature Side-by-Side) */
+.invoice-bottom-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1.5rem;
+}
+
+.invoice-terms {
+  flex: 1;
+  padding-right: 2rem;
+}
+
+.terms-list {
+  padding-left: 1rem;
+  margin: 0;
+  font-size: 0.8rem;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.terms-list li {
+  margin-bottom: 0.3rem;
+}
+
 /* Signatures */
 .invoice-signatures {
+  flex: 0 0 250px;
   display: flex;
   justify-content: flex-end;
-  margin-top: 3rem;
 }
 
 .signature-box {
   text-align: center;
-  width: 200px;
+  width: 100%;
 }
 
 .sign-for {
@@ -234,19 +261,29 @@
   color: #6b7280;
 }
 
-/* ======= PRINT MEDIA QUERIES ======= */
+/* ======= NAYA PRINT MEDIA QUERY ======= */
 @media print {
+  /* 1. Ye browser default header (localhost/date) hata dega */
   @page {
-    margin: 10mm; /* Perfect A4 Margin */
+    margin: 0; 
+  }
+
+  /* Browser margin hatane ke baad page ko theek se center karega */
+  body {
+    margin: 1cm; 
   }
   
-  .no-print {
+  /* 2. Ye un faltu cheezon ko chupayega jo print me nahi chahiye (menus, buttons, tabs) */
+  .no-print,
+  .bottom-tab-bar, 
+  .mobile-topbar, 
+  .sidebar,
+  .print-toolbar {
     display: none !important;
   }
   
   body, .invoice-page {
     background-color: white !important;
-    margin: 0;
     padding: 0;
   }
   
@@ -261,6 +298,6 @@
   }
 
   .table-container {
-    overflow: visible; /* Prevents scrollbars in print */
+    overflow: visible;
   }
 }

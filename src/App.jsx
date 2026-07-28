@@ -3,9 +3,7 @@ import QuotationList from './components/QuotationList';
 import QuotationForm from './components/QuotationForm';
 import InvoiceList from './components/InvoiceList';
 import InvoicePrint from './components/InvoicePrint';
-import PartyList from './components/PartyList';
-import ItemList from './components/Itemlist';
-import BusinessSettings from './components/BusinessSettings';
+import BackupRestore from './components/BackupRestore';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
 import { Store } from './utils/storage';
@@ -14,33 +12,26 @@ import './App.css';
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { key: 'parties', label: 'Parties', icon: '👥' },
-  { key: 'items', label: 'Items', icon: '📦' },
-  { key: 'quotation', label: 'Quotation', icon: '📝' },
-  { key: 'invoice', label: 'Invoices', icon: '🧾' },
-  { key: 'settings', label: 'Settings', icon: '⚙️' },
+  { key: 'quotation', label: 'Estimate', icon: '📝' },
+  { key: 'invoice', label: 'Sales', icon: '🧾' },
 ];
 
-// Only the 4 most-used sections get a bottom tab on mobile
-const BOTTOM_TAB_ITEMS = NAV_ITEMS.filter(item =>
-  ['dashboard', 'parties', 'quotation', 'invoice'].includes(item.key)
-);
+const BOTTOM_TAB_ITEMS = NAV_ITEMS;
 
 export default function App() {
-  const [session, setSession] = useState(undefined); // undefined = checking, null = logged out, object = logged in
+  const [session, setSession] = useState(undefined); 
   const [activeNav, setActiveNav] = useState('quotation');
   const [view, setView] = useState('list');
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [loadingInvoice, setLoadingInvoice] = useState(false);
+  // FIX 1: Sirf ID nahi, pura fresh data save karenge ab hum yahan
+  const [printInvoiceData, setPrintInvoiceData] = useState(null); 
+  const [editingId, setEditingId] = useState(null); 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    // Check if already logged in (persisted session)
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
     });
 
-    // Listen for login/logout changes
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
     });
@@ -51,27 +42,13 @@ export default function App() {
   function goToNav(key) {
     setActiveNav(key);
     setView('list');
-    setSidebarOpen(false); // auto-close drawer after navigating
+    setEditingId(null);
+    setSidebarOpen(false); 
   }
 
   async function handleLogout() {
     await supabase.auth.signOut();
     setSidebarOpen(false);
-  }
-
-  // Handle invoice viewing for print view asynchronously
-  async function handleViewInvoice(id) {
-    try {
-      setLoadingInvoice(true);
-      setView('print');
-      const invoices = await Store.getInvoices();
-      const invoice = invoices.find(i => i.id === id);
-      setSelectedInvoice(invoice || null);
-    } catch (err) {
-      console.error('Failed to load invoice for printing:', err);
-    } finally {
-      setLoadingInvoice(false);
-    }
   }
 
   const activeLabel = NAV_ITEMS.find(item => item.key === activeNav)?.label || 'BizManager';
@@ -82,14 +59,16 @@ export default function App() {
         return (
           <QuotationForm
             mode="quotation"
-            onCancel={() => setView('list')}
-            onSaved={() => setView('list')}
+            editingId={editingId}
+            onCancel={() => { setView('list'); setEditingId(null); }}
+            onSaved={() => { setView('list'); setEditingId(null); }}
           />
         );
       }
       return (
         <QuotationList
-          onCreateNew={() => setView('form')}
+          onCreateNew={() => { setEditingId(null); setView('form'); }}
+          onEdit={(id) => { setEditingId(id); setView('form'); }}
           onConvert={() => goToNav('invoice')}
         />
       );
@@ -100,25 +79,26 @@ export default function App() {
         return (
           <QuotationForm
             mode="invoice"
-            onCancel={() => setView('list')}
-            onSaved={() => setView('list')}
+            editingId={editingId}
+            onCancel={() => { setView('list'); setEditingId(null); }}
+            onSaved={() => { setView('list'); setEditingId(null); }}
           />
         );
       }
       if (view === 'print') {
-        if (loadingInvoice) {
-          return (
-            <div className="page">
-              <div className="empty-state">Loading invoice details...</div>
-            </div>
-          );
-        }
-        return <InvoicePrint invoice={selectedInvoice} onBack={() => setView('list')} />;
+        // FIX 2: Ab directly state wala fresh data InvoicePrint ko bhejenge
+        return <InvoicePrint invoice={printInvoiceData} onBack={() => setView('list')} />;
       }
       return (
         <InvoiceList
-          onCreateNew={() => setView('form')}
-          onView={(id) => handleViewInvoice(id)}
+          onCreateNew={() => { setEditingId(null); setView('form'); }}
+          onEdit={(id) => { setEditingId(id); setView('form'); }}
+          // FIX 3: onView par click karte hi fresh data mangwayenge (async/await ka use karke)
+          onView={async (id) => { 
+            const freshData = await Store.getInvoice(id);
+            setPrintInvoiceData(freshData); 
+            setView('print'); 
+          }}
         />
       );
     }
@@ -127,34 +107,19 @@ export default function App() {
       return <Dashboard />;
     }
 
-    if (activeNav === 'parties') {
-      return <PartyList />;
-    }
-
-    if (activeNav === 'items') {
-      return <ItemList />;
-    }
-
-    if (activeNav === 'settings') {
-      return <BusinessSettings />;
-    }
-
     return <div className="page"><p className="text-muted">Coming soon.</p></div>;
   }
 
-  // Still checking session on first load
   if (session === undefined) {
     return null;
   }
 
-  // Not logged in — show login screen only
   if (!session) {
     return <Login onLogin={setSession} />;
   }
 
   return (
     <div className="app">
-      {/* Mobile-only top bar */}
       <header className="mobile-topbar">
         <button
           className="hamburger-btn"
@@ -168,7 +133,6 @@ export default function App() {
         <span className="mobile-topbar-title">{activeLabel}</span>
       </header>
 
-      {/* Backdrop shown behind drawer on mobile */}
       {sidebarOpen && (
         <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
       )}
@@ -204,7 +168,6 @@ export default function App() {
 
       <main className="main">{renderContent()}</main>
 
-      {/* Mobile-only bottom tab bar */}
       <nav className="bottom-tab-bar">
         {BOTTOM_TAB_ITEMS.map(item => (
           <button

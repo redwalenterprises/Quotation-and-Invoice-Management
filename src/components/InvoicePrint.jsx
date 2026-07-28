@@ -1,10 +1,10 @@
 import React from 'react';
 import { rowCalc } from '../utils/calculations';
 import { amountToWords } from '../utils/numberToWords';
-import './InvoicePrint.css'; // Make sure to import the CSS file
+import './InvoicePrint.css'; 
 
 const BUSINESS_NAME = 'Salon Chair Wala';
-const BUSINESS_LOGO = '/logo.webp'; // e.g., '/logo.png'
+const BUSINESS_LOGO = '/logo.webp'; 
 const BUSINESS_PHONE = '206, F4 Building, Bhumi World, Bhiwandi Bypass, Maharashtra';
 
 function formatCurrency(n) {
@@ -32,6 +32,13 @@ export default function InvoicePrint({ invoice, onBack }) {
   const paid = Number(invoice.paidAmount || 0);
   const balance = Number(invoice.total || 0) - paid;
 
+  // setTimeout ensures React updates the DOM before the print dialog opens
+  const handlePrint = () => {
+    setTimeout(() => {
+      window.print();
+    }, 300);
+  };
+
   return (
     <div className="invoice-page">
       {/* Non-printable Toolbar */}
@@ -39,7 +46,7 @@ export default function InvoicePrint({ invoice, onBack }) {
         <button className="btn btn-secondary" onClick={onBack}>
           &larr; Back
         </button>
-        <button className="btn btn-primary" onClick={() => window.print()}>
+        <button className="btn btn-primary" onClick={handlePrint}>
           🖨 Print / Save as PDF
         </button>
       </div>
@@ -155,14 +162,35 @@ export default function InvoicePrint({ invoice, onBack }) {
           </div>
         </div>
 
-        {/* Signatures */}
-        <div className="invoice-signatures">
-          <div className="signature-box">
-            <p className="sign-for">For {BUSINESS_NAME}</p>
-            <div className="sign-line"></div>
-            <p className="sign-label">Authorized Signatory</p>
+        {/* Bottom Section: Terms & Signatures */}
+        <div className="invoice-bottom-section">
+          {/* Updated 10 Points Terms & Conditions */}
+          <div className="invoice-terms">
+            <span className="party-label" style={{ marginBottom: '8px' }}>Terms & Conditions:</span>
+            <ol className="terms-list" style={{ fontSize: '11px', lineHeight: '1.4', paddingLeft: '14px', margin: 0, color: '#4b5563' }}>
+              <li><strong>Advance Payment:</strong> All advance payments made for salon chairs are non-refundable. By making an advance payment, the buyer acknowledges and agrees to this condition.</li>
+              <li><strong>Sale Finality:</strong> Once sold, goods will not be taken back or exchanged. The buyer confirms their purchase based on personal judgment and any information provided by the seller.</li>
+              <li><strong>Warranty & Guarantee:</strong> Salon chairs are sold "as is", with no warranty or guarantee, expressed or implied. The seller is not responsible for any future performance issues, maintenance, or defects.</li>
+              <li><strong>Product Inspection:</strong> The buyer agrees to inspect the salon chairs at the time of purchase or delivery. Any defects or discrepancies must be reported immediately. Failure to do so waives any claims against the seller.</li>
+              <li><strong>Service Location:</strong> All servicing and repairs are done only at our factory. No home service available.</li>
+              <li><strong>Governing Law:</strong> These terms and conditions are governed by the laws of Maharashtra, India. Any disputes will fall under the exclusive jurisdiction of Maharashtra courts.</li>
+              <li><strong>Discount Policy:</strong> Any discount applied to the purchase will result in the exclusion of warranty and guarantee provisions.</li>
+              <li><strong>Order Collection & Payment:</strong> If an order is not collected within 30 days, full payment must be made. A 1-month extension may be granted to complete the previous order, subject to adjusted pricing at current rates.</li>
+              <li><strong>Hydraulic Pump Replacement:</strong> We offer a one-time hydraulic pump replacement within 2 years for ₹1800. Applicable only for manufacturing defects under normal use. Original invoice is required. Exclusions: Damage due to misuse, accidental breakage, unauthorized repairs, or external factors.</li>
+              <li><strong>Service Policy:</strong> All servicing and repairs will be conducted exclusively at our factory. No on-site or home service is provided.</li>
+            </ol>
+          </div>
+
+          {/* Signatures */}
+          <div className="invoice-signatures" style={{ flexShrink: 0, marginLeft: '20px' }}>
+            <div className="signature-box">
+              <p className="sign-for">For {BUSINESS_NAME}</p>
+              <div className="sign-line"></div>
+              <p className="sign-label">Authorized Signatory</p>
+            </div>
           </div>
         </div>
+
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { Store } from '../utils/storage';
 import { rowCalc } from '../utils/calculations';
 
 const UNITS = ['NONE', 'PCS', 'KG', 'BOX', 'LTR', 'MTR'];
-const TAX_RATES = ['NONE', 'GST 18%'];
+const TAX_RATES = ['NONE', 'GST@18%'];
 
 function emptyRow() {
   return {
@@ -13,7 +13,7 @@ function emptyRow() {
   };
 }
 
-export default function QuotationForm({ onSaved, onCancel, mode = 'quotation' }) {
+export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', editingId = null }) {
   // === Async Data States ===
   const [savedItems, setSavedItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,15 +21,30 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation' })
 
   // === Original States ===
   const [partyName, setPartyName] = useState('');
+  const [phoneNo, setPhoneNo] = useState('');
+  const [isCash, setIsCash] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [stateOfSupply, setStateOfSupply] = useState('');
-  const [refNo, setRefNo] = useState(''); // Will be set asynchronously
+  const [refNo, setRefNo] = useState('');
   const [rows, setRows] = useState([emptyRow(), emptyRow()]);
-  const [showTerms, setShowTerms] = useState(false);
-  const [terms, setTerms] = useState('');
+  const [showTerms, setShowTerms] = useState(true);
+  const [terms, setTerms] = useState(
+    `1. Advance Payment: All advance payments made for salon chairs are non-refundable. By making an advance payment, the buyer acknowledges and agrees to this condition.
+2. Sale Finality: Once sold, goods will not be taken back or exchanged. The buyer confirms their purchase based on personal judgment and any information provided by the seller.
+3. Warranty & Guarantee: Salon chairs are sold "as is", with no warranty or guarantee, expressed or implied. The seller is not responsible for any future performance issues, maintenance, or defects.
+4. Product Inspection: The buyer agrees to inspect the salon chairs at the time of purchase or delivery. Any defects or discrepancies must be reported immediately. Failure to do so waives any claims against the seller.
+5. Service Location: All servicing and repairs are done only at our factory. No home service available.
+6. Governing Law: These terms and conditions are governed by the laws of Maharashtra, India. Any disputes will fall under the exclusive jurisdiction of Maharashtra courts.
+7. Discount Policy: Any discount applied to the purchase will result in the exclusion of warranty and guarantee provisions.
+8. Order Collection & Payment: If an order is not collected within 30 days, full payment must be made. A 1-month extension may be granted to complete the previous order, subject to adjusted pricing at current rates.
+9. Hydraulic Pump Replacement: We offer a one-time hydraulic pump replacement within 2 years for ₹1800. Applicable only for manufacturing defects under normal use. Original invoice is required. Exclusions: Damage due to misuse, accidental breakage, unauthorized repairs, or external factors.
+10. Service Policy: All servicing and repairs will be conducted exclusively at our factory. No on-site or home service is provided.`
+  );
   const [showDescription, setShowDescription] = useState(false);
   const [description, setDescription] = useState('');
   const [roundOff, setRoundOff] = useState(true);
+  const [recordReceived, setRecordReceived] = useState(false);
+  const [receivedAmount, setReceivedAmount] = useState('');
 
   // === Mobile "Add Item" Modal States ===
   const [showMobileAddItem, setShowMobileAddItem] = useState(false);
@@ -41,7 +56,10 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation' })
   const [mTaxRate, setMTaxRate] = useState('NONE');
   const [mUnit, setMUnit] = useState('PCS');
 
-  // === Fetch Initial Data (Items & Auto-generate Ref No) ===
+  const isEditing = Boolean(editingId);
+  const entityLabel = mode === 'invoice' ? 'Sale' : 'Estimate';
+
+  // === Fetch Initial Data ===
   useEffect(() => {
     async function loadData() {
       try {
@@ -51,12 +69,37 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation' })
           Store.getInvoices(),
           Store.getQuotations()
         ]);
-        
+
         setSavedItems(items || []);
-        
-        // Set next reference/invoice number
-        const nextNo = mode === 'invoice' ? (invoices.length || 0) + 1 : (quotations.length || 0) + 1;
-        setRefNo(nextNo);
+
+        if (editingId) {
+          const existing = mode === 'invoice'
+            ? await Store.getInvoice(editingId)
+            : await Store.getQuotation(editingId);
+
+          if (existing) {
+            setPartyName(existing.partyName || '');
+            setDate(existing.date || new Date().toISOString().slice(0, 10));
+            setStateOfSupply(existing.stateOfSupply || '');
+            setRefNo(mode === 'invoice' ? existing.invoiceNo : existing.refNo);
+            setTerms(existing.terms || '');
+            setDescription(existing.description || '');
+            setShowTerms(Boolean(existing.terms));
+            setShowDescription(Boolean(existing.description));
+            setRows(
+              existing.items && existing.items.length > 0
+                ? existing.items
+                : [emptyRow(), emptyRow()]
+            );
+            if (mode === 'invoice' && Number(existing.paidAmount) > 0) {
+              setRecordReceived(true);
+              setReceivedAmount(existing.paidAmount);
+            }
+          }
+        } else {
+          const nextNo = mode === 'invoice' ? (invoices.length || 0) + 1 : (quotations.length || 0) + 1;
+          setRefNo(nextNo);
+        }
       } catch (error) {
         console.error('Error loading form data:', error);
       } finally {
@@ -64,7 +107,7 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation' })
       }
     }
     loadData();
-  }, [mode]);
+  }, [mode, editingId]);
 
   // === Original Logic & Calculations ===
   function updateRow(index, field, value) {
@@ -105,6 +148,8 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation' })
   const rawTotal = totals.amount;
   const displayedRoundOff = roundOff ? Math.round(rawTotal) - rawTotal : 0;
   const finalTotal = rawTotal + displayedRoundOff;
+  const receivedValue = recordReceived ? (Number(receivedAmount) || 0) : 0;
+  const balanceValue = finalTotal - receivedValue;
 
   // === Async Form Save ===
   async function handleSave() {
@@ -122,8 +167,17 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation' })
         total: finalTotal,
       };
 
+      if (isEditing) data.id = editingId;
+
       let saved;
       if (mode === 'invoice') {
+        data.paymentType = isCash ? 'Cash' : 'Credit';
+        data.paidAmount = receivedValue;
+        data.paymentStatus = receivedValue >= finalTotal && finalTotal > 0
+          ? 'Paid'
+          : receivedValue > 0
+            ? 'Partial'
+            : 'Unpaid';
         saved = await Store.saveInvoice({ ...data, invoiceNo: refNo });
       } else {
         saved = await Store.saveQuotation({ ...data, refNo });
@@ -172,14 +226,12 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation' })
       setRows([...rows, newRow]);
     }
 
-    // Reset Mobile Form States
     setMItemName(''); setMItemDescription(''); setMQty(''); setMRate('');
     setMDiscountPercent(''); setMTaxRate('NONE'); setMUnit('PCS');
     
     if (!isNew) setShowMobileAddItem(false);
   }
 
-  // Loading UI fallback
   if (loading) {
     return (
       <div className="page">
@@ -196,7 +248,7 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation' })
       <div className="mobile-add-item-screen">
         <div className="mobile-header">
           <button className="back-btn" onClick={() => setShowMobileAddItem(false)}>←</button>
-          <h3>Add Items to {mode === 'invoice' ? 'Invoice' : 'Estimate'}</h3>
+          <h3>Add Items to {entityLabel}</h3>
         </div>
         <div className="mobile-body">
           <div className="floating-input-group">
@@ -274,31 +326,52 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation' })
   // ==========================================
   return (
     <div className="page">
-      <div className="page-header">
-        <h2>{mode === 'invoice' ? 'Sale / Invoice' : 'Estimate / Quotation'}</h2>
+      {/* DESKTOP TOP BAR */}
+      <div className="billing-top-bar">
+        <h2 className="billing-title">{isEditing ? `Edit ${entityLabel}` : entityLabel}</h2>
+        <div className="payment-toggle">
+          <span style={{ color: !isCash ? '#1976d2' : '#666' }}>Credit</span>
+          <label className="toggle-switch">
+            <input type="checkbox" checked={isCash} onChange={e => setIsCash(e.target.checked)} />
+            <span className="slider"></span>
+          </label>
+          <span style={{ color: isCash ? '#1976d2' : '#666' }}>Cash</span>
+        </div>
       </div>
 
       <div className="card">
-        <div className="form-top-row">
-          <div className="form-group floating-group" style={{ maxWidth: 320, width: '100%' }}>
+        {/* DESKTOP HEADER BLOCK */}
+        <div className="details-box">
+          <div className="party-inputs-group">
             <input
-              type="text" placeholder=" "
-              value={partyName} onChange={e => setPartyName(e.target.value)}
+              type="text"
+              className="compact-input-field"
+              placeholder="Search by Name/Phone *"
+              list="saved-items-party-list"
+              value={partyName}
+              onChange={e => setPartyName(e.target.value)}
             />
-            <label>Customer Name <span className="required">*</span></label>
+            <input
+              type="text"
+              className="compact-input-field"
+              placeholder="Phone No."
+              value={phoneNo}
+              onChange={e => setPhoneNo(e.target.value)}
+            />
           </div>
-          <div className="form-top-right">
-            <div className="meta-row">
-              <span className="meta-label">{mode === 'invoice' ? 'Invoice no.' : 'Ref no.'}</span>
-              <input type="text" className="meta-input" value={refNo} onChange={e => setRefNo(e.target.value)} />
+
+          <div className="invoice-meta-group">
+            <div className="meta-inline-row">
+              <label>{mode === 'invoice' ? 'Invoice Number' : 'Ref Number'}</label>
+              <input type="text" value={refNo} onChange={e => setRefNo(e.target.value)} />
             </div>
-            <div className="meta-row">
-              <span className="meta-label">Invoice date</span>
-              <input type="date" className="meta-input" value={date} onChange={e => setDate(e.target.value)} />
+            <div className="meta-inline-row">
+              <label>Invoice Date</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} />
             </div>
-            <div className="meta-row">
-              <span className="meta-label">State of supply</span>
-              <select className="meta-input" value={stateOfSupply} onChange={e => setStateOfSupply(e.target.value)}>
+            <div className="meta-inline-row">
+              <label>State of supply</label>
+              <select value={stateOfSupply} onChange={e => setStateOfSupply(e.target.value)}>
                 <option value="">Select</option>
                 <option>Maharashtra</option>
                 <option>Delhi</option>
@@ -310,13 +383,20 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation' })
           </div>
         </div>
 
+        {/* DESKTOP ZERO-GAP SPREADSHEET TABLE */}
         <div className="desktop-table-wrapper">
-          <table className="item-table">
+          <table className="spreadsheet-grid-table">
             <thead>
               <tr>
-                <th>#</th><th>Item</th><th>Description</th><th>Qty</th><th>Unit</th><th>Price / unit</th>
-                <th>Discount %</th><th>Discount amt</th><th>Tax</th>
-                <th style={{ textAlign: 'right' }}>Amount</th><th></th>
+                <th style={{ width: '30px' }} className="col-center">#</th>
+                <th>ITEM</th>
+                <th style={{ width: '70px' }} className="col-center">QTY</th>
+                <th style={{ width: '90px' }}>UNIT</th>
+                <th style={{ width: '110px' }} className="col-right">PRICE/UNIT</th>
+                <th style={{ width: '110px' }} className="col-right">DISCOUNT</th>
+                <th style={{ width: '120px' }}>TAX</th>
+                <th style={{ width: '100px' }} className="col-right">AMOUNT</th>
+                <th style={{ width: '30px' }}></th>
               </tr>
             </thead>
             <tbody>
@@ -324,47 +404,87 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation' })
                 const calc = rowCalc(row);
                 return (
                   <tr key={i}>
-                    <td>{i + 1}</td>
+                    <td className="col-center" style={{ color: '#888' }}>{i + 1}</td>
                     <td>
-                      <input type="text" list="saved-items-list" value={row.item} onChange={e => updateRow(i, 'item', e.target.value)} placeholder="Item name" />
+                      <input
+                        type="text"
+                        list="saved-items-list"
+                        placeholder="Item name"
+                        value={row.item}
+                        onChange={e => updateRow(i, 'item', e.target.value)}
+                        style={{ fontWeight: 600 }}
+                      />
                     </td>
                     <td>
-                      <input type="text" value={row.itemDescription || ''} onChange={e => updateRow(i, 'itemDescription', e.target.value)} placeholder="Description" />
+                      <input
+                        type="number"
+                        className="col-center"
+                        value={row.qty}
+                        onChange={e => updateRow(i, 'qty', e.target.value)}
+                      />
                     </td>
-                    <td><input type="number" value={row.qty} onChange={e => updateRow(i, 'qty', e.target.value)} /></td>
                     <td>
                       <select value={row.unit} onChange={e => updateRow(i, 'unit', e.target.value)}>
                         {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </td>
-                    <td><input type="number" value={row.price} onChange={e => updateRow(i, 'price', e.target.value)} /></td>
-                    <td><input type="number" value={row.discountPercent} onChange={e => updateRow(i, 'discountPercent', e.target.value)} /></td>
-                    <td style={{ textAlign: 'right' }}>{calc.discountAmount.toFixed(2)}</td>
+                    <td>
+                      <input
+                        type="number"
+                        className="col-right"
+                        value={row.price}
+                        onChange={e => updateRow(i, 'price', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="col-right"
+                        placeholder="%"
+                        value={row.discountPercent}
+                        onChange={e => updateRow(i, 'discountPercent', e.target.value)}
+                      />
+                    </td>
                     <td>
                       <select value={row.taxRate} onChange={e => updateRow(i, 'taxRate', e.target.value)}>
                         {TAX_RATES.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </td>
-                    <td style={{ textAlign: 'right' }}>{calc.amount.toFixed(2)}</td>
-                    <td><button className="icon-btn" onClick={() => removeRow(i)}>✕</button></td>
+                    <td className="col-right" style={{ fontWeight: 700 }}>
+                      {calc.amount.toFixed(2)}
+                    </td>
+                    <td className="col-center">
+                      <button
+                        onClick={() => removeRow(i)}
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#999' }}
+                      >
+                        ✕
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
-              <tr>
-                <td colSpan={3}><button className="link-btn" onClick={addRow}>+ Add row</button></td>
-                <td style={{ fontWeight: 600 }}>{totals.qty}</td>
-                <td colSpan={3}></td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{totals.discount.toFixed(2)}</td>
+              <tr className="table-footer-row">
+                <td colSpan={2}>
+                  <button className="btn-add-row-blue" onClick={addRow}>
+                    ADD ROW
+                  </button>
+                </td>
+                <td className="col-center">{totals.qty || ''}</td>
                 <td></td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{totals.amount.toFixed(2)}</td>
+                <td></td>
+                <td className="col-right">{totals.discount > 0 ? totals.discount.toFixed(2) : '0'}</td>
+                <td className="col-right">{totals.tax > 0 ? totals.tax.toFixed(2) : ''}</td>
+                <td className="col-right">{finalTotal.toFixed(2)}</td>
                 <td></td>
               </tr>
             </tfoot>
           </table>
         </div>
 
+        {/* ORIGINAL MOBILE CARDS WRAPPER */}
         <div className="mobile-cards-wrapper">
           {rows.filter(r => r.item.trim()).length > 0 && (
             <div className="billed-items-banner"><span>✓ Billed Items</span></div>
@@ -405,20 +525,57 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation' })
           </div>
         </div>
 
+        {/* EXTRAS & FOOTER */}
         <div className="extras-row" style={{ marginTop: '20px' }}>
           <div className="extras-left">
             <button className="extra-btn" onClick={() => setShowTerms(!showTerms)}>📄 Add terms</button>
             <button className="extra-btn" onClick={() => setShowDescription(!showDescription)}>📝 Add desc</button>
           </div>
 
-          <div className="total-controls">
-            <label className="roundoff-toggle">
-              <input type="checkbox" checked={roundOff} onChange={e => setRoundOff(e.target.checked)} />
-              Round off
-            </label>
-            <input type="text" className="roundoff-input" value={displayedRoundOff.toFixed(2)} readOnly />
-            <span className="meta-label">Total</span>
-            <input type="text" className="total-input" value={finalTotal.toFixed(2)} readOnly />
+          <div className="total-controls total-controls-stacked">
+            <div className="total-controls-row">
+              <label className="roundoff-toggle">
+                <input type="checkbox" checked={roundOff} onChange={e => setRoundOff(e.target.checked)} />
+                Round off
+              </label>
+              <input type="text" className="roundoff-input" value={displayedRoundOff.toFixed(2)} readOnly />
+              <span className="meta-label">Total</span>
+              <input type="text" className="total-input" value={finalTotal.toFixed(2)} readOnly />
+            </div>
+
+            {mode === 'invoice' && (
+              <>
+                <div className="total-controls-row">
+                  <label className="roundoff-toggle">
+                    <input
+                      type="checkbox"
+                      checked={recordReceived}
+                      onChange={e => setRecordReceived(e.target.checked)}
+                    />
+                    Received
+                  </label>
+                  <input
+                    type="number"
+                    className="total-input"
+                    value={receivedAmount}
+                    onChange={e => setReceivedAmount(e.target.value)}
+                    disabled={!recordReceived}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div className="total-controls-row">
+                  <span className="meta-label" style={{ fontWeight: 700 }}>Balance</span>
+                  <input
+                    type="text"
+                    className="total-input"
+                    value={balanceValue.toFixed(2)}
+                    readOnly
+                    style={{ fontWeight: 700 }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 

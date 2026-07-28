@@ -5,7 +5,7 @@ function formatCurrency(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 }
 
-export default function QuotationList({ onCreateNew, onConvert }) {
+export default function QuotationList({ onCreateNew, onConvert, onEdit }) {
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,16 +26,29 @@ export default function QuotationList({ onCreateNew, onConvert }) {
     .reduce((sum, q) => sum + Number(q.total || 0), 0);
   const open = total - converted;
 
-  async function handleConvert(id) {
+  async function handleConvert(id, e) {
+    e.stopPropagation();
     await Store.convertToInvoice(id);
     await loadData();
     onConvert?.(id);
   }
 
+  async function handleDelete(id, e) {
+    e.stopPropagation();
+    if (!window.confirm('Delete this estimate? This cannot be undone.')) return;
+    await Store.deleteQuotation(id);
+    await loadData();
+  }
+
+  function handleEdit(id, e) {
+    e?.stopPropagation();
+    onEdit?.(id);
+  }
+
   if (loading) {
     return (
       <div className="page">
-        <div className="empty-state">Loading quotations...</div>
+        <div className="empty-state">Loading estimates...</div>
       </div>
     );
   }
@@ -43,69 +56,136 @@ export default function QuotationList({ onCreateNew, onConvert }) {
   return (
     <div className="page">
       <div className="page-header">
-        <h2>Estimate / Quotation</h2>
-        <button className="btn btn-primary" onClick={onCreateNew}>+ Add estimate</button>
+        <h2>Estimate/Quotation <span className="header-dropdown-icon">⌄</span></h2>
+        <button className="btn btn-primary" onClick={onCreateNew}>+ Add Estimate</button>
       </div>
 
       <div className="filter-bar">
+        <span className="filter-label" style={{ marginRight: '10px', fontWeight: '500' }}>Filter by :</span>
         <select className="pill-select" defaultValue="This Month">
           <option>This Month</option>
           <option>Last Month</option>
           <option>This Year</option>
         </select>
-        <input type="date" className="pill-input" defaultValue="2026-07-01" />
-        <span className="filter-sep">to</span>
-        <input type="date" className="pill-input" defaultValue="2026-07-31" />
+        
+        <div className="date-range-group" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <span className="calendar-icon">📅</span>
+          <input type="date" className="pill-input plain" defaultValue="2026-07-01" />
+          <span className="filter-sep" style={{ textTransform: 'capitalize' }}>To</span>
+          <input type="date" className="pill-input plain" defaultValue="2026-07-31" />
+        </div>
+
         <select className="pill-select" defaultValue="All Firms">
           <option>All Firms</option>
         </select>
       </div>
 
       <div className="stat-card">
-        <p className="stat-label">Total quotations</p>
-        <p className="stat-value">{formatCurrency(total)}</p>
+        <div className="stat-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <p className="stat-label">Total Quotations</p>
+            <p className="stat-value">{formatCurrency(total)}</p>
+          </div>
+          <div className="stat-growth" style={{ textAlign: 'right' }}>
+            <span className="growth-badge" style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px', fontSize: '12px' }}>0% ↗</span>
+            <div className="growth-text" style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>vs last month</div>
+          </div>
+        </div>
         <p className="stat-sub">
           Converted: {formatCurrency(converted)} &nbsp;|&nbsp; Open: {formatCurrency(open)}
         </p>
       </div>
 
-      <div className="card">
-        <div className="section-header"><h3>Transactions</h3></div>
+      <div className="card" style={{ marginTop: '20px' }}>
+        <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px' }}>
+          <h3>Transactions</h3>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ cursor: 'pointer' }}>
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </div>
 
         {quotations.length === 0 ? (
-          <div className="empty-state">No quotations yet. Create your first estimate.</div>
+          <div className="empty-state">No estimates yet. Create your first estimate.</div>
         ) : (
-          /* ✅ Table wrapped in table-scroll */
           <div className="table-scroll">
-            <table>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', color: '#333' }}>
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Reference no</th>
-                  <th>Party name</th>
-                  <th style={{ textAlign: 'right' }}>Amount</th>
-                  <th style={{ textAlign: 'right' }}>Balance</th>
-                  <th>Status</th>
-                  <th></th>
+                  {/* Background color #f9fafb (light grey) added to all th elements */}
+                  <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      Date <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                    </div>
+                  </th>
+                  <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      Reference no <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                    </div>
+                  </th>
+                  <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      Party Name <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                    </div>
+                  </th>
+                  <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      Amount <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                    </div>
+                  </th>
+                  <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      Balance <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                    </div>
+                  </th>
+                  <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      Status <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                    </div>
+                  </th>
+                  <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px', textAlign: 'left' }}>
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {quotations.map(q => (
-                  <tr key={q.id}>
-                    <td>{q.date}</td>
-                    <td>{q.refNo}</td>
-                    <td>{q.partyName}</td>
-                    <td style={{ textAlign: 'right' }}>{formatCurrency(q.total)}</td>
-                    <td style={{ textAlign: 'right' }}>{formatCurrency(q.status === 'Converted' ? 0 : q.total)}</td>
-                    <td>
-                      <span className={`status-badge ${q.status === 'Converted' ? 'status-converted' : 'status-open'}`}>
+                  <tr key={q.id} onClick={() => handleEdit(q.id)} style={{ cursor: 'pointer' }}>
+                    <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>{q.date}</td>
+                    <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>{q.refNo}</td>
+                    <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>{q.partyName}</td>
+                    <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px', textAlign: 'right' }}>{formatCurrency(q.total)}</td>
+                    <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px', textAlign: 'right' }}>{formatCurrency(q.status === 'Converted' ? 0 : q.total)}</td>
+                    <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>
+                      <span style={{ color: '#2F80ED', textDecoration: 'none' }} className={`status-badge ${q.status === 'Converted' ? 'status-converted' : 'status-open'}`}>
                         {q.status}
                       </span>
                     </td>
-                    <td>
-                      {q.status === 'Open' && (
-                        <button className="link-btn" onClick={() => handleConvert(q.id)}>Convert</button>
-                      )}
+                    <td style={{ borderBottom: '1px solid #eaedf1', padding: '16px', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          
+                          {q.status === 'Open' ? (
+                            <button className="link-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#a0a0a0', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} onClick={(e) => handleConvert(q.id, e)}>
+                              Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                          ) : (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#c0c0c0', fontSize: '13px' }}>
+                              Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </span>
+                          )}
+                          
+                          <button className="link-btn" onClick={(e) => handleEdit(q.id, e)}>Edit</button>
+                          <button className="link-btn" style={{ color: 'var(--danger, #EB5757)' }} onClick={(e) => handleDelete(q.id, e)}>Delete</button>
+                        
+                        </div>
+                        
+                        <svg style={{ cursor: 'pointer', color: '#a0a0a0' }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="1"></circle>
+                          <circle cx="12" cy="5" r="1"></circle>
+                          <circle cx="12" cy="19" r="1"></circle>
+                        </svg>
+                      </div>
                     </td>
                   </tr>
                 ))}
