@@ -4,7 +4,7 @@ import QuotationForm from './components/QuotationForm';
 import InvoiceList from './components/InvoiceList';
 import InvoicePrint from './components/InvoicePrint';
 import PartyList from './components/PartyList';
-import ItemList from './components/ItemList';
+import ItemList from './components/Itemlist';
 import BusinessSettings from './components/BusinessSettings';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
