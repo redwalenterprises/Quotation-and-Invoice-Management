@@ -5,16 +5,23 @@ import './InvoicePrint.css';
 
 const BUSINESS_NAME = 'Salon Chair Wala';
 const BUSINESS_LOGO = '/logo.webp'; 
-const BUSINESS_PHONE = '206, F4 Building, Bhumi World, Bhiwandi Bypass, Maharashtra';
+const BUSINESS_ADDRESS = '206, F4 Building, Bhumi World, Bhiwandi Bypass, Maharashtra';
 
 function formatCurrency(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+// Date ko YYYY-MM-DD format me lane ke liye helper
+function formatDate(dateString) {
+  if (!dateString) return new Date().toISOString().split('T')[0];
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return dateString;
+  return d.toISOString().split('T')[0];
+}
+
 export default function InvoicePrint({ invoice, onBack }) {
   const items = invoice.items || [];
 
-  // Optimized single-pass calculation
   const totals = items.reduce(
     (acc, r) => {
       const c = rowCalc(r);
@@ -32,12 +39,15 @@ export default function InvoicePrint({ invoice, onBack }) {
   const paid = Number(invoice.paidAmount || 0);
   const balance = Number(invoice.total || 0) - paid;
 
-  // setTimeout ensures React updates the DOM before the print dialog opens
   const handlePrint = () => {
     setTimeout(() => {
       window.print();
     }, 300);
   };
+
+  // Name ke sath phone attach karne ke liye format
+  const customerName = invoice.partyName || 'Cash Client';
+  const customerPhone = invoice.partyPhone ? ` ${invoice.partyPhone}` : '';
 
   return (
     <div className="invoice-page">
@@ -58,9 +68,9 @@ export default function InvoicePrint({ invoice, onBack }) {
         <header className="invoice-header">
           <div className="invoice-brand">
             {BUSINESS_LOGO && <img src={BUSINESS_LOGO} alt="logo" className="invoice-logo" />}
-            <div>
+            <div className="invoice-brand-info">
               <h2 className="invoice-business-name">{BUSINESS_NAME}</h2>
-              {BUSINESS_PHONE && <p className="invoice-meta"> {BUSINESS_PHONE}</p>}
+              <p className="invoice-address">{BUSINESS_ADDRESS}</p>
             </div>
           </div>
           <div className="invoice-title-wrapper">
@@ -71,14 +81,19 @@ export default function InvoicePrint({ invoice, onBack }) {
         {/* Parties Details */}
         <div className="invoice-parties">
           <div className="party-box">
-            <span className="party-label">Billed To:</span>
-            <p className="party-name">{invoice.partyName || 'Cash Client'}</p>
-            {invoice.partyPhone && <p className="invoice-meta">Contact: {invoice.partyPhone}</p>}
+            <span className="party-label">BILLED TO:</span>
+            <p className="party-name">{customerName}{customerPhone}</p>
           </div>
           <div className="party-box align-right">
-            <span className="party-label">Invoice Details:</span>
-            <p className="invoice-meta"><strong>Date:</strong> {invoice.date || new Date().toLocaleDateString()}</p>
-            {invoice.invoiceNumber && <p className="invoice-meta"><strong>Inv No:</strong> {invoice.invoiceNumber}</p>}
+            <span className="party-label">INVOICE DETAILS:</span>
+            <p className="invoice-meta">
+              <strong>Date:</strong> {formatDate(invoice.date)}
+            </p>
+            {invoice.invoiceNumber && (
+              <p className="invoice-meta">
+                <strong>Inv No:</strong> {invoice.invoiceNumber}
+              </p>
+            )}
           </div>
         </div>
 
@@ -87,14 +102,14 @@ export default function InvoicePrint({ invoice, onBack }) {
           <table className="invoice-table">
             <thead>
               <tr>
-                <th>#</th>
-                <th>Item Description</th>
-                <th>HSN/SAC</th>
-                <th className="text-right">Qty</th>
-                <th className="text-right">Rate</th>
-                <th className="text-right">Discount</th>
-                <th className="text-right">GST</th>
-                <th className="text-right">Amount</th>
+                <th className="col-num">#</th>
+                <th className="col-desc">ITEM DESCRIPTION</th>
+                <th className="col-hsn">HSN/SAC</th>
+                <th className="text-right col-qty">QTY</th>
+                <th className="text-right col-rate">RATE</th>
+                <th className="text-right col-disc">DISCOUNT</th>
+                <th className="text-right col-gst">GST</th>
+                <th className="text-right col-amt">AMOUNT</th>
               </tr>
             </thead>
             <tbody>
@@ -102,16 +117,16 @@ export default function InvoicePrint({ invoice, onBack }) {
                 const c = rowCalc(row);
                 return (
                   <tr key={i}>
-                    <td>{i + 1}</td>
-                    <td className="item-name">{row.item}</td>
-                    <td>{row.hsn || '-'}</td>
-                    <td className="text-right">{row.qty}</td>
-                    <td className="text-right">{formatCurrency(row.price)}</td>
-                    <td className="text-right">{formatCurrency(c.discountAmount)}</td>
-                    <td className="text-right">
+                    <td className="col-num">{i + 1}</td>
+                    <td className="item-name col-desc">{row.item}</td>
+                    <td className="col-hsn">{row.hsn || '-'}</td>
+                    <td className="text-right col-qty">{row.qty}</td>
+                    <td className="text-right col-rate">{formatCurrency(row.price)}</td>
+                    <td className="text-right col-disc">{formatCurrency(c.discountAmount)}</td>
+                    <td className="text-right col-gst">
                       {c.taxPercent > 0 ? `${c.taxPercent}% (${formatCurrency(c.taxAmount)})` : '-'}
                     </td>
-                    <td className="text-right amount-col">{formatCurrency(c.amount)}</td>
+                    <td className="text-right amount-col col-amt">{formatCurrency(c.amount)}</td>
                   </tr>
                 );
               })}
@@ -164,10 +179,9 @@ export default function InvoicePrint({ invoice, onBack }) {
 
         {/* Bottom Section: Terms & Signatures */}
         <div className="invoice-bottom-section">
-          {/* Updated 10 Points Terms & Conditions */}
           <div className="invoice-terms">
             <span className="party-label" style={{ marginBottom: '8px' }}>Terms & Conditions:</span>
-            <ol className="terms-list" style={{ fontSize: '11px', lineHeight: '1.4', paddingLeft: '14px', margin: 0, color: '#4b5563' }}>
+            <ol className="terms-list">
               <li><strong>Advance Payment:</strong> All advance payments made for salon chairs are non-refundable. By making an advance payment, the buyer acknowledges and agrees to this condition.</li>
               <li><strong>Sale Finality:</strong> Once sold, goods will not be taken back or exchanged. The buyer confirms their purchase based on personal judgment and any information provided by the seller.</li>
               <li><strong>Warranty & Guarantee:</strong> Salon chairs are sold "as is", with no warranty or guarantee, expressed or implied. The seller is not responsible for any future performance issues, maintenance, or defects.</li>
@@ -181,8 +195,7 @@ export default function InvoicePrint({ invoice, onBack }) {
             </ol>
           </div>
 
-          {/* Signatures */}
-          <div className="invoice-signatures" style={{ flexShrink: 0, marginLeft: '20px' }}>
+          <div className="invoice-signatures">
             <div className="signature-box">
               <p className="sign-for">For {BUSINESS_NAME}</p>
               <div className="sign-line"></div>

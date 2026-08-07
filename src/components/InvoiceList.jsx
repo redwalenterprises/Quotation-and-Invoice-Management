@@ -42,7 +42,15 @@ function PrintIcon() {
   );
 }
 
-const COLUMNS = ['Date', 'Invoice no', 'Party Name', 'Transaction', 'Payment Type', 'Amount', 'Balance'];
+const COLUMNS = [
+  { label: 'Date', key: 'date' },
+  { label: 'Invoice no', key: 'invoiceNo' },
+  { label: 'Party Name', key: 'partyName' },
+  { label: 'Transaction', key: 'transaction' },
+  { label: 'Payment Type', key: 'paymentType' },
+  { label: 'Amount', key: 'total' },
+  { label: 'Balance', key: 'balance' },
+];
 
 export default function InvoiceList({ onCreateNew, onView, onEdit }) {
   const [invoices, setInvoices] = useState([]);
@@ -50,6 +58,11 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState({});
+  const [activeFilterPopup, setActiveFilterPopup] = useState(null);
+  const [dateRangeType, setDateRangeType] = useState('This Month');
+  const [fromDate, setFromDate] = useState('2026-07-01');
+  const [toDate, setToDate] = useState('2026-07-31');
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -66,6 +79,15 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.th-filter-container')) {
+        setActiveFilterPopup(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   async function loadData() {
     setLoading(true);
     const data = await Store.getInvoices();
@@ -73,9 +95,22 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
     setLoading(false);
   }
 
-  const filteredInvoices = invoices.filter(inv =>
-    inv.partyName?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredInvoices = invoices.filter(inv => {
+    const matchesSearch = inv.partyName?.toLowerCase().includes(search.toLowerCase());
+    const matchesFilters = Object.entries(filters).every(([key, value]) => {
+      if (!value) return true;
+      let invValue = inv[key];
+      if (key === 'balance') {
+        invValue = Number(inv.total || 0) - Number(inv.paidAmount || 0);
+      }
+      if (key === 'transaction') {
+        invValue = 'Sale';
+      }
+      return String(invValue).toLowerCase() === String(value).toLowerCase();
+    });
+    const matchesDateRange = (!fromDate || inv.date >= fromDate) && (!toDate || inv.date <= toDate);
+    return matchesSearch && matchesFilters && matchesDateRange;
+  });
 
   const total = invoices.reduce((sum, i) => sum + Number(i.total || 0), 0);
   const paid = invoices.reduce((sum, i) => sum + Number(i.paidAmount || 0), 0);
@@ -96,6 +131,85 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
     if (!window.confirm('Delete this sale? This cannot be undone.')) return;
     await Store.deleteInvoice(id);
     await loadData();
+  }
+
+  function handleDateRangeTypeChange(value) {
+  setDateRangeType(value);
+  const today = new Date();
+  let from, to;
+
+  if (value === 'This Month') {
+    from = new Date(today.getFullYear(), today.getMonth(), 1);
+    to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  } else if (value === 'Last Month') {
+    from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    to = new Date(today.getFullYear(), today.getMonth(), 0);
+  } else if (value === 'This Year') {
+    from = new Date(today.getFullYear(), 0, 1);
+    to = new Date(today.getFullYear(), 11, 31);
+  }
+
+  const formatDate = (d) => d.toISOString().split('T')[0];
+  setFromDate(formatDate(from));
+  setToDate(formatDate(to));
+}
+
+  function renderFilterHeader(label, key, isRightAligned = false) {
+    let uniqueValues = [];
+    if (key === 'balance') {
+      uniqueValues = [...new Set(invoices.map(inv => Number(inv.total || 0) - Number(inv.paidAmount || 0)))];
+    } else if (key === 'transaction') {
+      uniqueValues = ['Sale'];
+    } else {
+      uniqueValues = [...new Set(invoices.map(inv => inv[key]))].filter(Boolean);
+    }
+
+    const isActive = !!filters[key];
+    const isPopupOpen = activeFilterPopup === key;
+
+    return (
+      <th key={key} className={`th-filter-container ${isRightAligned ? 'col-right' : ''}`} style={{ position: 'relative' }}>
+        <span className="th-with-filter">
+          {label}
+          <svg
+            onClick={(e) => { e.stopPropagation(); setActiveFilterPopup(isPopupOpen ? null : key); }}
+            width="12" height="12" viewBox="0 0 24 24"
+            fill={isActive ? '#2563eb' : 'none'}
+            stroke={isActive ? '#2563eb' : 'currentColor'}
+            strokeWidth="2" style={{ cursor: 'pointer' }}
+          >
+            <polygon points="4 4 20 4 14 12 14 19 10 21 10 12 4 4" />
+          </svg>
+        </span>
+
+        {isPopupOpen && (
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', padding: '12px', zIndex: 100, minWidth: '180px', textAlign: 'left' }}>
+            <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>Filter {label}</div>
+            <select
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #d1d5db', marginBottom: '10px', fontSize: '13px' }}
+              value={filters[key] || ''}
+              onChange={(e) => {
+                setFilters(prev => ({ ...prev, [key]: e.target.value }));
+                setActiveFilterPopup(null);
+              }}
+            >
+              <option value="">-- All (Clear) --</option>
+              {uniqueValues.map((val, idx) => (
+                <option key={idx} value={val}>
+                  {(key === 'total' || key === 'balance') ? formatCurrency(val) : val}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={(e) => { e.stopPropagation(); setFilters(prev => ({ ...prev, [key]: '' })); setActiveFilterPopup(null); }}
+              style={{ width: '100%', padding: '6px', backgroundColor: '#fee2e2', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: '#dc2626', fontWeight: '600' }}
+            >
+              Clear Filter
+            </button>
+          </div>
+        )}
+      </th>
+    );
   }
 
   function toggleMenu(id, e) {
@@ -119,14 +233,28 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
       </div>
 
       <div className="filter-bar">
-        <select className="pill-select" defaultValue="This Month">
+        <select
+          className="pill-select"
+          value={dateRangeType}
+          onChange={(e) => handleDateRangeTypeChange(e.target.value)}
+        >
           <option>This Month</option>
           <option>Last Month</option>
           <option>This Year</option>
         </select>
-        <input type="date" className="pill-input" defaultValue="2026-07-01" />
+        <input
+          type="date"
+          className="pill-input"
+          value={fromDate}
+          onChange={(e) => setFromDate(e.target.value)}
+        />
         <span className="filter-sep">to</span>
-        <input type="date" className="pill-input" defaultValue="2026-07-31" />
+        <input
+          type="date"
+          className="pill-input"
+          value={toDate}
+          onChange={(e) => setToDate(e.target.value)}
+        />
       </div>
 
       <div className="stat-card">
@@ -166,14 +294,9 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
             <table className="vyapar-table">
               <thead>
                 <tr>
-                  {COLUMNS.map(col => (
-                    <th key={col} className={col === 'Amount' || col === 'Balance' ? 'col-right' : ''}>
-                      <span className="th-with-filter">
-                        {col}
-                        <FilterIcon />
-                      </span>
-                    </th>
-                  ))}
+                  {COLUMNS.map(col =>
+                    renderFilterHeader(col.label, col.key, col.key === 'total' || col.key === 'balance')
+                  )}
                   <th>Payment Status</th>
                   <th>Actions</th>
                 </tr>

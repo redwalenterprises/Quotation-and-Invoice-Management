@@ -3,11 +3,11 @@
   background-color: #f3f4f6;
   min-height: 100vh;
   padding: 2rem 1rem;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: #1f2937;
+  color: #2b2b2b;
 }
 
 .text-right { text-align: right; }
@@ -16,7 +16,7 @@
 /* Toolbar Buttons */
 .print-toolbar {
   width: 100%;
-  max-width: 800px;
+  max-width: 850px;
   display: flex;
   justify-content: space-between;
   margin-bottom: 1.5rem;
@@ -39,56 +39,64 @@
 .invoice-sheet {
   background-color: white;
   width: 100%;
-  max-width: 800px;
-  padding: 3rem;
-  border-radius: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  max-width: 850px;
+  padding: 2.5rem 3rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
 }
 
-/* Header */
+/* Header Section */
 .invoice-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  border-bottom: 2px solid #e5e7eb;
+  align-items: center;
+  border-bottom: 1px solid #e5e7eb;
   padding-bottom: 1.5rem;
   margin-bottom: 2rem;
 }
 
 .invoice-brand {
   display: flex;
-  gap: 1rem;
+  gap: 1.25rem;
   align-items: center;
 }
 
 .invoice-logo {
-  max-height: 60px;
+  max-height: 48px;
   width: auto;
   object-fit: contain;
 }
 
-.invoice-business-name {
-  margin: 0 0 0.2rem 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #111827;
+.invoice-brand-info {
+  display: flex;
+  flex-direction: column;
 }
 
-.invoice-meta {
+.invoice-business-name {
   margin: 0;
-  font-size: 0.875rem;
-  color: #4b5563;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0d0d0d;
+  letter-spacing: -0.2px;
+}
+
+.invoice-address {
+  margin: 0.2rem 0 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 400;
 }
 
 .invoice-title {
   margin: 0;
-  font-size: 1.8rem;
-  color: #9ca3af;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #7c62ca; /* Clean Purple Accent Color */
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
 }
 
-/* Parties */
+/* Parties Details */
 .invoice-parties {
   display: flex;
   justify-content: space-between;
@@ -97,23 +105,34 @@
 
 .party-label {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.725rem;
   text-transform: uppercase;
-  font-weight: 600;
-  color: #6b7280;
-  margin-bottom: 0.5rem;
+  font-weight: 700;
+  color: #9ca3af;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.4rem;
 }
 
 .party-name {
-  margin: 0 0 0.2rem 0;
-  font-size: 1.1rem;
-  font-weight: 600;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.invoice-meta {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.invoice-meta strong {
   color: #111827;
 }
 
 .align-right { text-align: right; }
 
-/* Table */
+/* Table Section */
 .table-container {
   overflow-x: auto;
   margin-bottom: 2rem;
@@ -122,35 +141,38 @@
 .invoice-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.invoice-table th, 
-.invoice-table td {
-  padding: 0.75rem 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.825rem;
 }
 
 .invoice-table th {
-  background-color: #f9fafb;
+  background-color: #fafafa;
+  color: #6b7280;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.8rem 0.6rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.invoice-table td {
+  padding: 0.8rem 0.6rem;
+  border-bottom: 1px solid #f3f4f6;
   color: #374151;
-  font-weight: 600;
-  text-align: left;
 }
 
 .item-name {
-  font-weight: 500;
+  font-weight: 600;
   color: #111827;
 }
 
 .amount-col {
-  font-weight: 600;
+  font-weight: 700;
   color: #111827;
 }
 
 .invoice-total-row td {
-  background-color: #f9fafb;
-  border-top: 2px solid #d1d5db;
+  background-color: #fafafa;
+  border-top: 1px solid #e5e7eb;
   border-bottom: none;
 }
 
@@ -165,47 +187,54 @@
 
 .amount-words {
   flex: 1;
-  background-color: #f9fafb;
+  background-color: #fafafa;
   padding: 1rem;
   border-radius: 6px;
   font-style: italic;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.amount-words p {
+  margin: 0.2rem 0 0 0;
 }
 
 .invoice-summary {
-  flex: 0 0 300px;
-  background-color: #f9fafb;
-  padding: 1.5rem;
+  flex: 0 0 280px;
+  background-color: #fafafa;
+  padding: 1.25rem;
   border-radius: 6px;
 }
 
 .summary-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 0.8rem;
-  font-size: 0.9rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.875rem;
+  color: #4b5563;
 }
+
 .summary-row:last-child { margin-bottom: 0; }
 
 .grand-total {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: #111827;
-  border-top: 1px solid #d1d5db;
-  padding-top: 0.8rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.6rem;
 }
 
 .balance-due {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: #dc2626;
   background-color: #fee2e2;
-  padding: 0.5rem;
+  padding: 0.4rem 0.6rem;
   border-radius: 4px;
-  margin-top: 0.5rem;
+  margin-top: 0.4rem;
 }
 
-/* Bottom Section (Terms & Signature Side-by-Side) */
+/* Bottom Terms & Signature */
 .invoice-bottom-section {
   display: flex;
   justify-content: space-between;
@@ -221,20 +250,19 @@
 }
 
 .terms-list {
+  font-size: 0.725rem;
+  line-height: 1.4;
   padding-left: 1rem;
   margin: 0;
-  font-size: 0.8rem;
-  color: #4b5563;
-  line-height: 1.5;
+  color: #6b7280;
 }
 
 .terms-list li {
   margin-bottom: 0.3rem;
 }
 
-/* Signatures */
 .invoice-signatures {
-  flex: 0 0 250px;
+  flex: 0 0 220px;
   display: flex;
   justify-content: flex-end;
 }
@@ -246,34 +274,32 @@
 
 .sign-for {
   font-weight: 600;
-  margin-bottom: 4rem;
-  font-size: 0.9rem;
+  margin-bottom: 3.5rem;
+  font-size: 0.85rem;
+  color: #374151;
 }
 
 .sign-line {
-  border-top: 1px solid #111827;
-  margin-bottom: 0.5rem;
+  border-top: 1px solid #374151;
+  margin-bottom: 0.4rem;
 }
 
 .sign-label {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #6b7280;
 }
 
-/* ======= NAYA PRINT MEDIA QUERY ======= */
+/* Print Settings */
 @media print {
-  /* 1. Ye browser default header (localhost/date) hata dega */
   @page {
-    margin: 0; 
+    margin: 0;
   }
 
-  /* Browser margin hatane ke baad page ko theek se center karega */
   body {
-    margin: 1cm; 
+    margin: 1cm;
   }
-  
-  /* 2. Ye un faltu cheezon ko chupayega jo print me nahi chahiye (menus, buttons, tabs) */
+
   .no-print,
   .bottom-tab-bar, 
   .mobile-topbar, 
@@ -281,12 +307,12 @@
   .print-toolbar {
     display: none !important;
   }
-  
+
   body, .invoice-page {
     background-color: white !important;
     padding: 0;
   }
-  
+
   .invoice-sheet {
     box-shadow: none;
     border: none;

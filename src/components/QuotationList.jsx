@@ -9,8 +9,23 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit }) {
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // NAYA: Excel-like filters ki state
+  const [filters, setFilters] = useState({});
+  const [activeFilterPopup, setActiveFilterPopup] = useState(null);
+
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Popup ko bahar click karne par band karne ka logic
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.th-filter-container')) {
+        setActiveFilterPopup(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   async function loadData() {
@@ -44,6 +59,87 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit }) {
     e?.stopPropagation();
     onEdit?.(id);
   }
+
+  // NAYA: Data filter karne ka logic (Excel jaisa)
+  const filteredQuotations = quotations.filter(q => {
+    return Object.entries(filters).every(([key, value]) => {
+      if (!value) return true; // Agar us column ka koi filter nahi hai, toh pass hone do
+      
+      // Amount/Balance ko theek se filter karne ke liye
+      let qValue = q[key];
+      if (key === 'balance') {
+        qValue = q.status === 'Converted' ? 0 : q.total;
+      }
+      return String(qValue).toLowerCase() === String(value).toLowerCase();
+    });
+  });
+
+  const clearFilter = (key, e) => {
+    e.stopPropagation();
+    setFilters(prev => ({ ...prev, [key]: '' }));
+    setActiveFilterPopup(null);
+  };
+
+  // NAYA: Table Header ko chhota aur clean rakhne ke liye ek Custom Header Function banaya hai
+  const renderFilterHeader = (label, key, isRightAligned = false) => {
+    // Us column ke sabhi unique (ek jaise) values nikalna dropdown ke liye
+    let uniqueValues = [];
+    if (key === 'balance') {
+      uniqueValues = [...new Set(quotations.map(q => q.status === 'Converted' ? 0 : q.total))].filter(v => v !== undefined);
+    } else {
+      uniqueValues = [...new Set(quotations.map(q => q[key]))].filter(Boolean);
+    }
+    
+    const isActive = !!filters[key];
+    const isPopupOpen = activeFilterPopup === key;
+
+    return (
+      <th className="th-filter-container" style={{ position: 'relative', backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px', textAlign: isRightAligned ? 'right' : 'left' }}>
+        <div style={{ display: 'flex', justifyContent: isRightAligned ? 'flex-end' : 'space-between', alignItems: 'center', gap: '8px' }}>
+          {label}
+          <svg 
+            onClick={(e) => { e.stopPropagation(); setActiveFilterPopup(isPopupOpen ? null : key); }}
+            style={{ cursor: 'pointer', fill: isActive ? '#2563eb' : 'none' }} 
+            width="14" height="14" viewBox="0 0 24 24" 
+            stroke={isActive ? '#2563eb' : '#a0a0a0'} 
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+        </div>
+
+        {/* Floating Excel-like Filter Box */}
+        {isPopupOpen && (
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', right: '0', marginTop: '4px', backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', padding: '12px', zIndex: 100, minWidth: '180px', textAlign: 'left' }}>
+            <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>Filter {label}</div>
+            
+            <select 
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #d1d5db', marginBottom: '10px', fontSize: '13px', outline: 'none', backgroundColor: '#f9fafb' }}
+              value={filters[key] || ''}
+              onChange={(e) => {
+                setFilters(prev => ({ ...prev, [key]: e.target.value }));
+                setActiveFilterPopup(null);
+              }}
+            >
+              <option value="">-- All (Clear) --</option>
+              {uniqueValues.map((val, idx) => (
+                <option key={idx} value={val}>
+                  {key === 'total' || key === 'balance' ? formatCurrency(val) : val}
+                </option>
+              ))}
+            </select>
+            
+            <button 
+              onClick={(e) => clearFilter(key, e)}
+              style={{ width: '100%', padding: '6px', backgroundColor: '#fee2e2', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: '#dc2626', fontWeight: '600' }}
+            >
+              Clear Filter
+            </button>
+          </div>
+        )}
+      </th>
+    );
+  };
 
   if (loading) {
     return (
@@ -112,83 +208,62 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', color: '#333' }}>
               <thead>
                 <tr>
-                  {/* Background color #f9fafb (light grey) added to all th elements */}
-                  <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      Date <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                    </div>
-                  </th>
-                  <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      Reference no <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                    </div>
-                  </th>
-                  <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      Party Name <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                    </div>
-                  </th>
-                  <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      Amount <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                    </div>
-                  </th>
-                  <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      Balance <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                    </div>
-                  </th>
-                  <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      Status <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                    </div>
-                  </th>
+                  {renderFilterHeader('Date', 'date')}
+                  {renderFilterHeader('Reference no', 'refNo')}
+                  {renderFilterHeader('Party Name', 'partyName')}
+                  {renderFilterHeader('Amount', 'total', true)}
+                  {renderFilterHeader('Balance', 'balance', true)}
+                  {renderFilterHeader('Status', 'status')}
                   <th style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #eaedf1', padding: '12px 16px', color: '#6b7280', fontWeight: '600', fontSize: '13px', textAlign: 'left' }}>
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {quotations.map(q => (
-                  <tr key={q.id} onClick={() => handleEdit(q.id)} style={{ cursor: 'pointer' }}>
-                    <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>{q.date}</td>
-                    <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>{q.refNo}</td>
-                    <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>{q.partyName}</td>
-                    <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px', textAlign: 'right' }}>{formatCurrency(q.total)}</td>
-                    <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px', textAlign: 'right' }}>{formatCurrency(q.status === 'Converted' ? 0 : q.total)}</td>
-                    <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>
-                      <span style={{ color: '#2F80ED', textDecoration: 'none' }} className={`status-badge ${q.status === 'Converted' ? 'status-converted' : 'status-open'}`}>
-                        {q.status}
-                      </span>
-                    </td>
-                    <td style={{ borderBottom: '1px solid #eaedf1', padding: '16px', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          
-                          {q.status === 'Open' ? (
-                            <button className="link-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#a0a0a0', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} onClick={(e) => handleConvert(q.id, e)}>
-                              Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                            </button>
-                          ) : (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#c0c0c0', fontSize: '13px' }}>
-                              Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                            </span>
-                          )}
-                          
-                          <button className="link-btn" onClick={(e) => handleEdit(q.id, e)}>Edit</button>
-                          <button className="link-btn" style={{ color: 'var(--danger, #EB5757)' }} onClick={(e) => handleDelete(q.id, e)}>Delete</button>
-                        
-                        </div>
-                        
-                        <svg style={{ cursor: 'pointer', color: '#a0a0a0' }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="1"></circle>
-                          <circle cx="12" cy="5" r="1"></circle>
-                          <circle cx="12" cy="19" r="1"></circle>
-                        </svg>
-                      </div>
+                {filteredQuotations.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                      No matching records found for this filter.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredQuotations.map(q => (
+                    <tr key={q.id} onClick={() => handleEdit(q.id)} style={{ cursor: 'pointer' }}>
+                      <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>{q.date}</td>
+                      <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>{q.refNo}</td>
+                      <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>{q.partyName}</td>
+                      <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px', textAlign: 'right' }}>{formatCurrency(q.total)}</td>
+                      <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px', textAlign: 'right' }}>{formatCurrency(q.status === 'Converted' ? 0 : q.total)}</td>
+                      <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>
+                        <span style={{ color: '#2F80ED', textDecoration: 'none' }} className={`status-badge ${q.status === 'Converted' ? 'status-converted' : 'status-open'}`}>
+                          {q.status}
+                        </span>
+                      </td>
+                      <td style={{ borderBottom: '1px solid #eaedf1', padding: '16px', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            {q.status === 'Open' ? (
+                              <button className="link-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#a0a0a0', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} onClick={(e) => handleConvert(q.id, e)}>
+                                Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                              </button>
+                            ) : (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#c0c0c0', fontSize: '13px' }}>
+                                Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                              </span>
+                            )}
+                            <button className="link-btn" onClick={(e) => handleEdit(q.id, e)}>Edit</button>
+                            <button className="link-btn" style={{ color: 'var(--danger, #EB5757)' }} onClick={(e) => handleDelete(q.id, e)}>Delete</button>
+                          </div>
+                          <svg style={{ cursor: 'pointer', color: '#a0a0a0' }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="1"></circle>
+                            <circle cx="12" cy="5" r="1"></circle>
+                            <circle cx="12" cy="19" r="1"></circle>
+                          </svg>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
