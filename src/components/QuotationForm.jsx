@@ -53,6 +53,7 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
   const [mQty, setMQty] = useState('');
   const [mRate, setMRate] = useState('');
   const [mDiscountPercent, setMDiscountPercent] = useState('');
+  const [mDiscountAmount, setMDiscountAmount] = useState('');
   const [mTaxRate, setMTaxRate] = useState('NONE');
   const [mUnit, setMUnit] = useState('PCS');
 
@@ -111,11 +112,15 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
 
   // === Original Logic & Calculations ===
   function updateRow(index, field, value) {
-    const next = [...rows];
-    next[index] = { ...next[index], [field]: value };
+    updateRowFields(index, { [field]: value });
+  }
 
-    if (field === 'item') {
-      const match = savedItems.find(si => si.name.toLowerCase() === value.toLowerCase());
+  function updateRowFields(index, updates) {
+    const next = [...rows];
+    next[index] = { ...next[index], ...updates };
+
+    if (updates.item !== undefined) {
+      const match = savedItems.find(si => si.name.toLowerCase() === updates.item.toLowerCase());
       if (match) {
         next[index] = {
           ...next[index],
@@ -212,8 +217,8 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
       qty: mQty || 1,
       unit: mUnit,
       price: mRate || 0,
-      discountPercent: mDiscountPercent, 
-      discountAmount: '', 
+      discountPercent: mDiscountAmount ? '' : mDiscountPercent,
+      discountAmount: mDiscountAmount || '',
       taxRate: mTaxRate,
     };
 
@@ -227,7 +232,7 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
     }
 
     setMItemName(''); setMItemDescription(''); setMQty(''); setMRate('');
-    setMDiscountPercent(''); setMTaxRate('NONE'); setMUnit('PCS');
+    setMDiscountPercent(''); setMDiscountAmount(''); setMTaxRate('NONE'); setMUnit('PCS');
     
     if (!isNew) setShowMobileAddItem(false);
   }
@@ -296,11 +301,21 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
             <div className="floating-input-group" style={{ flex: 1 }}>
               <input 
                 type="number" placeholder=" " 
-                value={mDiscountPercent} onChange={e => setMDiscountPercent(e.target.value)} 
+                value={mDiscountPercent}
+                onChange={e => { setMDiscountPercent(e.target.value); if (e.target.value) setMDiscountAmount(''); }}
               />
               <label>Discount %</label>
             </div>
-            
+
+            <div className="floating-input-group" style={{ flex: 1 }}>
+              <input
+                type="number" placeholder=" "
+                value={mDiscountAmount}
+                onChange={e => { setMDiscountAmount(e.target.value); if (e.target.value) setMDiscountPercent(''); }}
+              />
+              <label>Discount ₹</label>
+            </div>
+
             <div className="floating-input-group" style={{ flex: 1 }}>
               <select value={mTaxRate} onChange={e => setMTaxRate(e.target.value)} style={{ width: '100%', padding: '10px', marginTop: '12px', border: '1px solid #ccc', borderRadius: '4px' }}>
                 {TAX_RATES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -393,7 +408,8 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
                 <th style={{ width: '70px' }} className="col-center">QTY</th>
                 <th style={{ width: '90px' }}>UNIT</th>
                 <th style={{ width: '110px' }} className="col-right">PRICE/UNIT</th>
-                <th style={{ width: '110px' }} className="col-right">DISCOUNT</th>
+                <th style={{ width: '90px' }} className="col-right">DISC %</th>
+                <th style={{ width: '100px' }} className="col-right">DISC ₹</th>
                 <th style={{ width: '120px' }}>TAX</th>
                 <th style={{ width: '100px' }} className="col-right">AMOUNT</th>
                 <th style={{ width: '30px' }}></th>
@@ -442,7 +458,16 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
                         className="col-right"
                         placeholder="%"
                         value={row.discountPercent}
-                        onChange={e => updateRow(i, 'discountPercent', e.target.value)}
+                        onChange={e => updateRowFields(i, { discountPercent: e.target.value, discountAmount: e.target.value ? '' : row.discountAmount })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="col-right"
+                        placeholder="₹"
+                        value={row.discountAmount}
+                        onChange={e => updateRowFields(i, { discountAmount: e.target.value, discountPercent: e.target.value ? '' : row.discountPercent })}
                       />
                     </td>
                     <td>
