@@ -43,9 +43,13 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit }) {
 
   async function handleConvert(id, e) {
     e.stopPropagation();
-    await Store.convertToInvoice(id);
-    await loadData();
-    onConvert?.(id);
+    try {
+      await Store.convertToInvoice(id);
+      await loadData();
+      onConvert?.(id);
+    } catch (err) {
+      alert('Could not convert to invoice: ' + (err?.message || 'Unknown error'));
+    }
   }
 
   async function handleDelete(id, e) {

@@ -119,18 +119,32 @@ export const Store = {
     if (!qRow) return null;
 
     const quotationData = { ...qRow.data, status: 'Converted' };
-    await supabase.from('quotations').update({
+    const { error: qError } = await supabase.from('quotations').update({
       status: 'Converted', data: quotationData,
     }).eq('id', quotationId);
+    if (qError) {
+      console.error('Failed to mark quotation as converted:', qError);
+      throw qError;
+    }
 
-    const { count } = await supabase
+    // Use the highest existing invoice_no (not row count) so we never collide
+    // with historical invoice numbers imported from the old system.
+    const { data: maxRow, error: maxError } = await supabase
       .from('invoices')
-      .select('*', { count: 'exact', head: true });
+      .select('invoice_no')
+      .order('invoice_no', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (maxError) {
+      console.error('Failed to fetch max invoice number:', maxError);
+      throw maxError;
+    }
+    const nextInvoiceNo = (maxRow?.invoice_no || 0) + 1;
 
     const invoice = {
       ...qRow.data,
       id: generateId(),
-      invoiceNo: (count || 0) + 1,
+      invoiceNo: nextInvoiceNo,
       quotationId,
       date: new Date().toISOString().slice(0, 10),
       paymentStatus: 'Unpaid',
@@ -139,12 +153,16 @@ export const Store = {
     delete invoice.refNo;
     delete invoice.status;
 
-    await supabase.from('invoices').insert({
+    const { error: insertError } = await supabase.from('invoices').insert({
       id: invoice.id, invoice_no: invoice.invoiceNo, quotation_id: invoice.quotationId,
       party_name: invoice.partyName, date: invoice.date, total: invoice.total,
       payment_status: invoice.paymentStatus, paid_amount: invoice.paidAmount,
       data: invoice,
     });
+    if (insertError) {
+      console.error('Failed to insert new invoice:', insertError);
+      throw insertError;
+    }
 
     return invoice;
   },
