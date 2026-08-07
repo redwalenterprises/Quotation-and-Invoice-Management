@@ -52,6 +52,26 @@ const COLUMNS = [
   { label: 'Balance', key: 'balance' },
 ];
 
+// Compute a From/To date range for a given quick-filter label, anchored to
+// the REAL current date (not a hardcoded one) so new records always show up.
+function getMonthRange(type) {
+  const today = new Date();
+  let from, to;
+  if (type === 'Last Month') {
+    from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    to = new Date(today.getFullYear(), today.getMonth(), 0);
+  } else if (type === 'This Year') {
+    from = new Date(today.getFullYear(), 0, 1);
+    to = new Date(today.getFullYear(), 11, 31);
+  } else {
+    // This Month (default)
+    from = new Date(today.getFullYear(), today.getMonth(), 1);
+    to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  }
+  const fmt = (d) => d.toISOString().split('T')[0];
+  return { from: fmt(from), to: fmt(to) };
+}
+
 export default function InvoiceList({ onCreateNew, onView, onEdit }) {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,8 +81,9 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
   const [filters, setFilters] = useState({});
   const [activeFilterPopup, setActiveFilterPopup] = useState(null);
   const [dateRangeType, setDateRangeType] = useState('This Month');
-  const [fromDate, setFromDate] = useState('2026-07-01');
-  const [toDate, setToDate] = useState('2026-07-31');
+  const defaultRange = getMonthRange('This Month');
+  const [fromDate, setFromDate] = useState(defaultRange.from);
+  const [toDate, setToDate] = useState(defaultRange.to);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -134,25 +155,11 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
   }
 
   function handleDateRangeTypeChange(value) {
-  setDateRangeType(value);
-  const today = new Date();
-  let from, to;
-
-  if (value === 'This Month') {
-    from = new Date(today.getFullYear(), today.getMonth(), 1);
-    to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  } else if (value === 'Last Month') {
-    from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    to = new Date(today.getFullYear(), today.getMonth(), 0);
-  } else if (value === 'This Year') {
-    from = new Date(today.getFullYear(), 0, 1);
-    to = new Date(today.getFullYear(), 11, 31);
+    setDateRangeType(value);
+    const { from, to } = getMonthRange(value);
+    setFromDate(from);
+    setToDate(to);
   }
-
-  const formatDate = (d) => d.toISOString().split('T')[0];
-  setFromDate(formatDate(from));
-  setToDate(formatDate(to));
-}
 
   function renderFilterHeader(label, key, isRightAligned = false) {
     let uniqueValues = [];
