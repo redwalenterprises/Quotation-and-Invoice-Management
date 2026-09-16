@@ -274,12 +274,6 @@ export default function Dashboard() {
   const totalSaleThisPeriod = chartPoints.reduce((s, p) => s + p.value, 0);
   const periodLabel = PERIOD_OPTIONS.find(p => p.key === period)?.label || 'This Month';
 
-  const REPORTS = [
-    { key: 'sale-report', label: 'Sale Report', icon: '📄' },
-    { key: 'all-transactions', label: 'All Transactions', icon: '📋' },
-    { key: 'daybook-report', label: 'Daybook Report', icon: '📖' },
-    { key: 'party-statement', label: 'Party Statement', icon: '👤' },
-  ];
 
   // Helper for payment status badges
   const renderStatusBadge = (inv) => {
@@ -426,27 +420,6 @@ export default function Dashboard() {
           </div>
         )}
         <SalesLineChart points={chartPoints} labelPrefix="₹" />
-      </div>
-
-      {/* Most Used Reports — Vyapaar style */}
-      <div className="card" style={{ marginBottom: 24 }}>
-        <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3>Most Used Reports</h3>
-          <button className="link-btn" onClick={() => {}}>View All</button>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-          {REPORTS.map(r => (
-            <button
-              key={r.key}
-              className="btn btn-secondary"
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px' }}
-              onClick={() => {}}
-            >
-              <span>{r.icon} {r.label}</span>
-              <span>›</span>
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="dashboard-columns">
