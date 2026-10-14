@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Store } from '../utils/storage';
+import DateRangePicker, { toYMD } from './DateRangePicker';
 
 function formatCurrency(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
@@ -68,8 +69,7 @@ function getMonthRange(type) {
     from = new Date(today.getFullYear(), today.getMonth(), 1);
     to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   }
-  const fmt = (d) => d.toISOString().split('T')[0];
-  return { from: fmt(from), to: fmt(to) };
+  return { from: toYMD(from), to: toYMD(to) };
 }
 
 export default function InvoiceList({ onCreateNew, onView, onEdit }) {
@@ -133,8 +133,8 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
     return matchesSearch && matchesFilters && matchesDateRange;
   });
 
-  const total = invoices.reduce((sum, i) => sum + Number(i.total || 0), 0);
-  const paid = invoices.reduce((sum, i) => sum + Number(i.paidAmount || 0), 0);
+  const total = filteredInvoices.reduce((sum, i) => sum + Number(i.total || 0), 0);
+  const paid = filteredInvoices.reduce((sum, i) => sum + Number(i.paidAmount || 0), 0);
   const due = total - paid;
 
   async function handleMarkPaid(id, e) {
@@ -156,6 +156,7 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
 
   function handleDateRangeTypeChange(value) {
     setDateRangeType(value);
+    if (value === 'Custom') return;
     const { from, to } = getMonthRange(value);
     setFromDate(from);
     setToDate(to);
@@ -248,19 +249,16 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
           <option>This Month</option>
           <option>Last Month</option>
           <option>This Year</option>
+          <option>Custom</option>
         </select>
-        <input
-          type="date"
-          className="pill-input"
-          value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
-        />
-        <span className="filter-sep">to</span>
-        <input
-          type="date"
-          className="pill-input"
-          value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
+        <DateRangePicker
+          from={fromDate}
+          to={toDate}
+          onChange={({ from, to }) => {
+            setFromDate(from);
+            setToDate(to);
+            setDateRangeType('Custom');
+          }}
         />
       </div>
 
@@ -313,7 +311,7 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
                   const balance = Number(inv.total || 0) - Number(inv.paidAmount || 0);
                   return (
                     <tr key={inv.id} onClick={() => onEdit?.(inv.id)} style={{ cursor: 'pointer' }}>
-                      <td>{inv.date}</td>
+                      <td>{inv.date?.split('-').reverse().join('/')}</td>
                       <td>{inv.invoiceNo}</td>
                       <td>{inv.partyName}</td>
                       <td>Sale</td>
