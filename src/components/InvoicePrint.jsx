@@ -1,7 +1,7 @@
-import React from 'react';
 import { rowCalc } from '../utils/calculations';
 import { amountToWords } from '../utils/numberToWords';
 import './InvoicePrint.css'; 
+import React, { useRef, useState } from 'react';
 
 const BUSINESS_NAME = 'SALON CHAIR WALA';
 const BUSINESS_LOGO = '/logo.webp';
@@ -33,6 +33,74 @@ export default function InvoicePrint({ invoice, onBack }) {
   const paid = Number(invoice.paidAmount || 0);
   const balance = Number(invoice.total || 0) - paid;
 
+  const sheetRef = useRef(null);
+const [sharing, setSharing] = useState(false);
+
+async function buildPdfBlob() {
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import('html2canvas'),
+    import('jspdf'),
+  ]);
+
+  const canvas = await html2canvas(sheetRef.current, {
+    scale: 2,
+    backgroundColor: '#ffffff',
+    useCORS: true,
+  });
+
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const imgH = (canvas.height * pageW) / canvas.width;
+  const img = canvas.toDataURL('image/jpeg', 0.95);
+
+  let left = imgH;
+  let pos = 0;
+  pdf.addImage(img, 'JPEG', 0, pos, pageW, imgH);
+  left -= pageH;
+  while (left > 0) {
+    pos -= pageH;
+    pdf.addPage();
+    pdf.addImage(img, 'JPEG', 0, pos, pageW, imgH);
+    left -= pageH;
+  }
+  return pdf.output('blob');
+}
+
+async function handleShare() {
+  try {
+    setSharing(true);
+    const no = invoice.invoiceNo || invoice.invoiceNumber || 'invoice';
+    const fileName = `Invoice-${no}.pdf`;
+    const blob = await buildPdfBlob();
+    const file = new File([blob], fileName, { type: 'application/pdf' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: `Invoice ${no}`,
+        text: `Invoice ${no} - ${invoice.partyName} - ${formatCurrency(invoice.total)}`,
+      });
+    } else {
+      // Desktop fallback: PDF download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+      alert('PDF download ho gaya. Ise WhatsApp ya kisi bhi app se bhej sakte hain.');
+    }
+  } catch (err) {
+    if (err?.name !== 'AbortError') {
+      console.error(err);
+      alert('Share nahi ho paya. Dobara try karein.');
+    }
+  } finally {
+    setSharing(false);
+  }
+}
+
   // setTimeout ensures React updates the DOM before the print dialog opens
   const handlePrint = () => {
     setTimeout(() => {
@@ -47,13 +115,18 @@ export default function InvoicePrint({ invoice, onBack }) {
         <button className="btn btn-secondary" onClick={onBack}>
           &larr; Back
         </button>
-        <button className="btn btn-primary" onClick={handlePrint}>
-          🖨 Print / Save as PDF
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={handleShare} disabled={sharing}>
+            {sharing ? 'Preparing...' : '📤 Share'}
+          </button>
+          <button className="btn btn-primary" onClick={handlePrint}>
+            🖨 Print / Save as PDF
+          </button>
+        </div>
       </div>
 
       {/* Printable Invoice Sheet */}
-      <div className="invoice-sheet">
+      <div className="invoice-sheet" ref={sheetRef}>
         
         {/* Header Section */}
         <header className="invoice-header">

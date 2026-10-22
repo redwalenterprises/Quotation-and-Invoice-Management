@@ -72,7 +72,7 @@ function getMonthRange(type) {
   return { from: toYMD(from), to: toYMD(to) };
 }
 
-export default function InvoiceList({ onCreateNew, onView, onEdit }) {
+export default function InvoiceList({ onCreateNew, onView, onEdit, readOnly = false }) {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -140,6 +140,7 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
   async function handleMarkPaid(id, e) {
     e.stopPropagation();
     setOpenMenuId(null);
+    if (readOnly) return;
     const invoice = invoices.find(i => i.id === id);
     const remaining = Number(invoice.total || 0) - Number(invoice.paidAmount || 0);
     await Store.recordPayment(id, remaining);
@@ -149,6 +150,7 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
   async function handleDelete(id, e) {
     e.stopPropagation();
     setOpenMenuId(null);
+    if (readOnly) return;
     if (!window.confirm('Delete this sale? This cannot be undone.')) return;
     await Store.deleteInvoice(id);
     await loadData();
@@ -237,7 +239,9 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
     <div className="page">
       <div className="page-header">
         <h2>Sales</h2>
-        <button className="btn btn-primary" onClick={onCreateNew}>+ Add Sale</button>
+        {!readOnly && (
+          <button className="btn btn-primary" onClick={onCreateNew}>+ Add Sale</button>
+        )}
       </div>
 
       <div className="filter-bar">
@@ -310,7 +314,7 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
                 {filteredInvoices.map(inv => {
                   const balance = Number(inv.total || 0) - Number(inv.paidAmount || 0);
                   return (
-                    <tr key={inv.id} onClick={() => onEdit?.(inv.id)} style={{ cursor: 'pointer' }}>
+                    <tr key={inv.id} onClick={() => (readOnly ? onView?.(inv.id) : onEdit?.(inv.id))} style={{ cursor: 'pointer' }}>
                       <td>{inv.date?.split('-').reverse().join('/')}</td>
                       <td>{inv.invoiceNo}</td>
                       <td>{inv.partyName}</td>
@@ -337,19 +341,23 @@ export default function InvoiceList({ onCreateNew, onView, onEdit }) {
                         {openMenuId === inv.id && (
                           <div className="row-menu" ref={menuRef} onClick={e => e.stopPropagation()}>
                             <button className="row-menu-item" onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); onView?.(inv.id); }}>
-                              View / print
+                              {readOnly ? 'View / share' : 'View / print'}
                             </button>
-                            <button className="row-menu-item" onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); onEdit?.(inv.id); }}>
-                              Edit
-                            </button>
-                            {inv.paymentStatus !== 'Paid' && (
-                              <button className="row-menu-item" onClick={(e) => handleMarkPaid(inv.id, e)}>
-                                Mark paid
-                              </button>
+                            {!readOnly && (
+                              <>
+                                <button className="row-menu-item" onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); onEdit?.(inv.id); }}>
+                                  Edit
+                                </button>
+                                {inv.paymentStatus !== 'Paid' && (
+                                  <button className="row-menu-item" onClick={(e) => handleMarkPaid(inv.id, e)}>
+                                    Mark paid
+                                  </button>
+                                )}
+                                <button className="row-menu-item row-menu-danger" onClick={(e) => handleDelete(inv.id, e)}>
+                                  Delete
+                                </button>
+                              </>
                             )}
-                            <button className="row-menu-item row-menu-danger" onClick={(e) => handleDelete(inv.id, e)}>
-                              Delete
-                            </button>
                           </div>
                         )}
                       </td>

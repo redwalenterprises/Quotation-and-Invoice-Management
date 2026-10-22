@@ -84,7 +84,7 @@ function SalesLineChart({ points, labelPrefix }) {
   );
 }
 
-export default function Dashboard() {
+export default function Dashboard({ readOnly = false }) {
   const [showBackup, setShowBackup] = useState(false);
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState([]);
@@ -312,9 +312,11 @@ export default function Dashboard() {
     <div className="page">
       <div className="page-header">
         <h2>Dashboard</h2>
-        <button className="btn btn-secondary" onClick={() => setShowBackup(true)}>
-          ⬇ Backup &amp; Restore
-        </button>
+        {!readOnly && (
+          <button className="btn btn-secondary" onClick={() => setShowBackup(true)}>
+            ⬇ Backup &amp; Restore
+          </button>
+        )}
       </div>
 
       {/* Total Receivable / Total Payable — Vyapaar style */}

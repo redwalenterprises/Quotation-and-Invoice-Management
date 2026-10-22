@@ -5,7 +5,7 @@ function formatCurrency(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 }
 
-export default function QuotationList({ onCreateNew, onConvert, onEdit }) {
+export default function QuotationList({ onCreateNew, onConvert, onEdit, readOnly = false }) {
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -43,6 +43,7 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit }) {
 
   async function handleConvert(id, e) {
     e.stopPropagation();
+    if (readOnly) return;  
     try {
       await Store.convertToInvoice(id);
       await loadData();
@@ -54,6 +55,7 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit }) {
 
   async function handleDelete(id, e) {
     e.stopPropagation();
+    if (readOnly) return;
     if (!window.confirm('Delete this estimate? This cannot be undone.')) return;
     await Store.deleteQuotation(id);
     await loadData();
@@ -157,7 +159,7 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit }) {
     <div className="page">
       <div className="page-header">
         <h2>Estimate/Quotation <span className="header-dropdown-icon">⌄</span></h2>
-        <button className="btn btn-primary" onClick={onCreateNew}>+ Add Estimate</button>
+          <button className="btn btn-primary" onClick={onCreateNew}>+ Add Estimate</button>
       </div>
 
       <div className="filter-bar">
@@ -246,17 +248,23 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit }) {
                       <td style={{ borderBottom: '1px solid #eaedf1', padding: '16px', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            {q.status === 'Open' ? (
-                              <button className="link-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#a0a0a0', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} onClick={(e) => handleConvert(q.id, e)}>
-                                Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                              </button>
+                            {readOnly ? (
+                              <button className="link-btn" onClick={(e) => handleEdit(q.id, e)}>View</button>
                             ) : (
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#c0c0c0', fontSize: '13px' }}>
-                                Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                              </span>
+                              <>
+                                {q.status === 'Open' ? (
+                                  <button className="link-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#a0a0a0', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} onClick={(e) => handleConvert(q.id, e)}>
+                                    Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                  </button>
+                                ) : (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#c0c0c0', fontSize: '13px' }}>
+                                    Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                  </span>
+                                )}
+                                <button className="link-btn" onClick={(e) => handleEdit(q.id, e)}>Edit</button>
+                                <button className="link-btn" style={{ color: 'var(--danger, #EB5757)' }} onClick={(e) => handleDelete(q.id, e)}>Delete</button>
+                              </>
                             )}
-                            <button className="link-btn" onClick={(e) => handleEdit(q.id, e)}>Edit</button>
-                            <button className="link-btn" style={{ color: 'var(--danger, #EB5757)' }} onClick={(e) => handleDelete(q.id, e)}>Delete</button>
                           </div>
                           <svg style={{ cursor: 'pointer', color: '#a0a0a0' }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <circle cx="12" cy="12" r="1"></circle>

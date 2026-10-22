@@ -9,6 +9,7 @@ import Login from './components/Login';
 import { Store } from './utils/storage';
 import { supabase } from './utils/supabaseClient';
 import './App.css';
+import { isViewer } from './utils/roles';
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -51,6 +52,7 @@ export default function App() {
     setSidebarOpen(false);
   }
 
+  const readOnly = isViewer(session);
   const activeLabel = NAV_ITEMS.find(item => item.key === activeNav)?.label || 'BizManager';
 
   function renderContent() {
@@ -60,6 +62,7 @@ export default function App() {
           <QuotationForm
             mode="quotation"
             editingId={editingId}
+            readOnly={readOnly}
             onCancel={() => { setView('list'); setEditingId(null); }}
             onSaved={() => { setView('list'); setEditingId(null); }}
           />
@@ -67,6 +70,7 @@ export default function App() {
       }
       return (
         <QuotationList
+          readOnly={readOnly}
           onCreateNew={() => { setEditingId(null); setView('form'); }}
           onEdit={(id) => { setEditingId(id); setView('form'); }}
           onConvert={() => goToNav('invoice')}
@@ -80,6 +84,7 @@ export default function App() {
           <QuotationForm
             mode="invoice"
             editingId={editingId}
+            readOnly={readOnly}
             onCancel={() => { setView('list'); setEditingId(null); }}
             onSaved={() => { setView('list'); setEditingId(null); }}
           />
@@ -91,6 +96,7 @@ export default function App() {
       }
       return (
         <InvoiceList
+          readOnly={readOnly}
           onCreateNew={() => { setEditingId(null); setView('form'); }}
           onEdit={(id) => { setEditingId(id); setView('form'); }}
           // FIX 3: onView par click karte hi fresh data mangwayenge (async/await ka use karke)
@@ -104,7 +110,7 @@ export default function App() {
     }
 
     if (activeNav === 'dashboard') {
-      return <Dashboard />;
+      return <Dashboard readOnly={readOnly}/>;
     }
 
     return <div className="page"><p className="text-muted">Coming soon.</p></div>;

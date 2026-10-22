@@ -13,7 +13,7 @@ function emptyRow() {
   };
 }
 
-export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', editingId = null }) {
+export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', editingId = null, readOnly = false }) {
   // === Async Data States ===
   const [savedItems, setSavedItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -158,6 +158,7 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
 
   // === Async Form Save ===
   async function handleSave() {
+    if (readOnly) return;
     if (!partyName.trim()) return;
     
     try {
@@ -248,7 +249,7 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
   // ==========================================
   // VIEW 1: MOBILE ADD ITEM SCREEN
   // ==========================================
-  if (showMobileAddItem) {
+  if (showMobileAddItem && !readOnly) {
     return (
       <div className="mobile-add-item-screen">
         <div className="mobile-header">
@@ -343,11 +344,13 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
     <div className="page">
       {/* DESKTOP TOP BAR */}
       <div className="billing-top-bar">
-        <h2 className="billing-title">{isEditing ? `Edit ${entityLabel}` : entityLabel}</h2>
+        <h2 className="billing-title">
+          {readOnly ? `View ${entityLabel}` : isEditing ? `Edit ${entityLabel}` : entityLabel}
+        </h2>
         <div className="payment-toggle">
           <span style={{ color: !isCash ? '#1976d2' : '#666' }}>Credit</span>
           <label className="toggle-switch">
-            <input type="checkbox" checked={isCash} onChange={e => setIsCash(e.target.checked)} />
+            <input type="checkbox" checked={isCash} onChange={e => setIsCash(e.target.checked)} disabled={readOnly} />
             <span className="slider"></span>
           </label>
           <span style={{ color: isCash ? '#1976d2' : '#666' }}>Cash</span>
@@ -355,6 +358,9 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
       </div>
 
       <div className="card">
+        {/* ===== FIELDSET START: readOnly hone par andar ka sab disable ===== */}
+        <fieldset disabled={readOnly} className="ro-fieldset">
+
         {/* DESKTOP HEADER BLOCK */}
         <div className="details-box">
           <div className="party-inputs-group">
@@ -374,6 +380,7 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
               onChange={e => setPhoneNo(e.target.value)}
             />
           </div>
+          
 
           <div className="invoice-meta-group">
             <div className="meta-inline-row">
@@ -479,12 +486,14 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
                       {calc.amount.toFixed(2)}
                     </td>
                     <td className="col-center">
-                      <button
-                        onClick={() => removeRow(i)}
-                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#999' }}
-                      >
-                        ✕
-                      </button>
+                      {!readOnly && (
+                        <button
+                          onClick={() => removeRow(i)}
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#999' }}
+                        >
+                          ✕
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -493,9 +502,11 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
             <tfoot>
               <tr className="table-footer-row">
                 <td colSpan={2}>
-                  <button className="btn-add-row-blue" onClick={addRow}>
-                    ADD ROW
-                  </button>
+                  {!readOnly && (
+                    <button className="btn-add-row-blue" onClick={addRow}>
+                      ADD ROW
+                    </button>
+                  )}
                 </td>
                 <td className="col-center">{totals.qty || ''}</td>
                 <td></td>
@@ -532,15 +543,19 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
                 )}
                 <div className="card-row-sub">
                   <span>{row.qty} x ₹{row.price}</span>
-                  <button className="icon-btn" onClick={() => removeRow(i)}>🗑️ Remove</button>
+                  {!readOnly && (
+                    <button className="icon-btn" onClick={() => removeRow(i)}>🗑️ Remove</button>
+                  )}
                 </div>
               </div>
             );
           })}
           
-          <button className="add-item-solid-btn" onClick={() => setShowMobileAddItem(true)}>
-            + Add Items
-          </button>
+          {!readOnly && (
+            <button className="add-item-solid-btn" onClick={() => setShowMobileAddItem(true)}>
+              + Add Items
+            </button>
+          )}
 
           <div className="items-summary-grid">
             <div>Total Disc: ₹ {totals.discount.toFixed(2)}</div>
@@ -553,8 +568,12 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
         {/* EXTRAS & FOOTER */}
         <div className="extras-row" style={{ marginTop: '20px' }}>
           <div className="extras-left">
-            <button className="extra-btn" onClick={() => setShowTerms(!showTerms)}>📄 Add terms</button>
-            <button className="extra-btn" onClick={() => setShowDescription(!showDescription)}>📝 Add desc</button>
+            {!readOnly && (
+              <>
+                <button className="extra-btn" onClick={() => setShowTerms(!showTerms)}>📄 Add terms</button>
+                <button className="extra-btn" onClick={() => setShowDescription(!showDescription)}>📝 Add desc</button>
+              </>
+            )}
           </div>
 
           <div className="total-controls total-controls-stacked">
@@ -618,12 +637,19 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
           </div>
         )}
 
+        </fieldset>
+        {/* ===== FIELDSET END ===== */}
+
         <div className="form-footer">
           <div className="form-actions" style={{ marginLeft: 'auto' }}>
-            <button className="btn btn-secondary" onClick={onCancel} disabled={saving}>Cancel</button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving...' : 'Save'}
+            <button className="btn btn-secondary" onClick={onCancel} disabled={saving}>
+              {readOnly ? 'Back' : 'Cancel'}
             </button>
+            {!readOnly && (
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            )}
           </div>
         </div>
 
