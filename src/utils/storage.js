@@ -199,27 +199,29 @@ export const Store = {
         .eq('id', invoice.id)
         .maybeSingle();
       const merged = { ...existing?.data, ...invoice };
+      merged.invoiceNo = Number(merged.invoiceNo); 
       await supabase.from('invoices').update({
         invoice_no: merged.invoiceNo, quotation_id: merged.quotationId,
         party_name: merged.partyName, date: merged.date, total: merged.total,
         payment_status: merged.paymentStatus, paid_amount: merged.paidAmount,
         data: merged,
       }).eq('id', invoice.id);
-      return merged;
+      return merged; 
     } else {
-      const { count } = await supabase
-        .from('invoices')
-        .select('*', { count: 'exact', head: true });
       invoice.id = generateId();
-      invoice.invoiceNo = (count || 0) + 1;
+      invoice.invoiceNo = Number(invoice.invoiceNo);
+      if (!Number.isFinite(invoice.invoiceNo) || invoice.invoiceNo <= 0) {
+        throw new Error('Invoice number required');
+      }
       invoice.paymentStatus = invoice.paymentStatus || 'Unpaid';
       invoice.paidAmount = invoice.paidAmount || 0;
-      await supabase.from('invoices').insert({
+      const { error } = await supabase.from('invoices').insert({
         id: invoice.id, invoice_no: invoice.invoiceNo, quotation_id: invoice.quotationId,
         party_name: invoice.partyName, date: invoice.date, total: invoice.total,
         payment_status: invoice.paymentStatus, paid_amount: invoice.paidAmount,
         data: invoice,
       });
+      if (error) throw error;
       return invoice;
     }
   },

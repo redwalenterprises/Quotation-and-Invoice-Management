@@ -65,9 +65,8 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
     async function loadData() {
       try {
         setLoading(true);
-        const [items, invoices, quotations] = await Promise.all([
+        const [items, quotations] = await Promise.all([
           Store.getItems(),
-          Store.getInvoices(),
           Store.getQuotations()
         ]);
 
@@ -83,6 +82,8 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
             setDate(existing.date || new Date().toISOString().slice(0, 10));
             setStateOfSupply(existing.stateOfSupply || '');
             setRefNo(mode === 'invoice' ? existing.invoiceNo : existing.refNo);
+            setPhoneNo(existing.partyPhone || '');
+            if (mode === 'invoice') setIsCash((existing.paymentType || 'Cash') === 'Cash');
             setTerms(existing.terms || '');
             setDescription(existing.description || '');
             setShowTerms(Boolean(existing.terms));
@@ -98,8 +99,12 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
             }
           }
         } else {
-          const nextNo = mode === 'invoice' ? (invoices.length || 0) + 1 : (quotations.length || 0) + 1;
-          setRefNo(nextNo);
+          if (mode === 'invoice') {
+            setRefNo('');
+          } else {
+            const maxQuo = quotations.reduce((m, q) => Math.max(m, Number(q.refNo) || 0), 0);
+            setRefNo(maxQuo + 1);
+          }
         }
       } catch (error) {
         console.error('Error loading form data:', error);
@@ -160,11 +165,19 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
   async function handleSave() {
     if (readOnly) return;
     if (!partyName.trim()) return;
+    if (mode === 'invoice') {
+      const no = Number(String(refNo).trim());
+      if (!String(refNo).trim() || !Number.isFinite(no) || no <= 0) {
+        alert('Invoice number daalna zaroori hai (sirf number).');
+        return;
+      }
+    }
     
     try {
       setSaving(true);
       const data = {
         partyName: partyName.trim(),
+        partyPhone: phoneNo.trim(),
         date,
         stateOfSupply,
         items: rows.filter(r => r.item.trim()),
@@ -385,7 +398,13 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
           <div className="invoice-meta-group">
             <div className="meta-inline-row">
               <label>{mode === 'invoice' ? 'Invoice Number' : 'Ref Number'}</label>
-              <input type="text" value={refNo} onChange={e => setRefNo(e.target.value)} />
+              <input
+                type="text"
+                inputMode={mode === 'invoice' ? 'numeric' : 'text'}
+                placeholder={mode === 'invoice' ? 'Invoice no. daalo' : ''}
+                value={refNo}
+                onChange={e => setRefNo(e.target.value)}
+              />
             </div>
             <div className="meta-inline-row">
               <label>Invoice Date</label>
