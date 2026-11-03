@@ -26,6 +26,7 @@ export default function App() {
   const [view, setView] = useState('list');
   // FIX 1: Sirf ID nahi, pura fresh data save karenge ab hum yahan
   const [printInvoiceData, setPrintInvoiceData] = useState(null); 
+  const [printQuotationData, setPrintQuotationData] = useState(null);
   const [editingId, setEditingId] = useState(null); 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -67,14 +68,28 @@ export default function App() {
             // Employee (viewer) estimates me add/edit/delete kar sakta hai
             readOnly={false}
             onCancel={() => { setView('list'); setEditingId(null); }}
-            onSaved={() => { setView('list'); setEditingId(null); }}
+            onSaved={(saved) => {
+              // Save hote hi estimate ka PDF/print view dikhao
+              setEditingId(null);
+              if (saved) { setPrintQuotationData(saved); setView('print'); }
+              else { setView('list'); }
+            }}
           />
         );
+      }
+      if (view === 'print') {
+        return <InvoicePrint mode="quotation" invoice={printQuotationData} onBack={() => setView('list')} />;
       }
       return (
         <QuotationList
           readOnly={false}
           canConvert={!readOnly}
+          onView={async (id) => {
+            const freshData = await Store.getQuotation(id);
+            if (!freshData) { alert('Estimate load nahi ho paya. Dobara try karein.'); return; }
+            setPrintQuotationData(freshData);
+            setView('print');
+          }}
           onCreateNew={() => { setEditingId(null); setView('form'); }}
           onEdit={(id) => { setEditingId(id); setView('form'); }}
           onConvert={() => goToNav('invoice')}

@@ -5,14 +5,19 @@ import React, { useRef, useState } from 'react';
 
 const BUSINESS_NAME = 'SALON CHAIR WALA';
 const BUSINESS_LOGO = '/logo.webp';
-const BUSINESS_PHONE = '9403891146';
+const BUSINESS_PHONE = '9403890310';
 const BUSINESS_EMAIL = 'redwalenterprises@gmail.com';
 
 function formatCurrency(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function InvoicePrint({ invoice, onBack }) {
+export default function InvoicePrint({ invoice, onBack, mode = 'invoice' }) {
+  const isEstimate = mode === 'quotation';
+  const docLabel = isEstimate ? 'Estimate' : 'Invoice';
+  const docNo = isEstimate
+    ? (invoice.refNo || '-')
+    : (invoice.invoiceNo || invoice.invoiceNumber || '-');
   const items = invoice.items || [];
 
   // Optimized single-pass calculation
@@ -70,16 +75,16 @@ async function buildPdfBlob() {
 async function handleShare() {
   try {
     setSharing(true);
-    const no = invoice.invoiceNo || invoice.invoiceNumber || 'invoice';
-    const fileName = `Invoice-${no}.pdf`;
+    const no = docNo === '-' ? docLabel.toLowerCase() : docNo;
+    const fileName = `${docLabel}-${no}.pdf`;
     const blob = await buildPdfBlob();
     const file = new File([blob], fileName, { type: 'application/pdf' });
 
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({
         files: [file],
-        title: `Invoice ${no}`,
-        text: `Invoice ${no} - ${invoice.partyName} - ${formatCurrency(invoice.total)}`,
+        title: `${docLabel} ${no}`,
+        text: `${docLabel} ${no} - ${invoice.partyName} - ${formatCurrency(invoice.total)}`,
       });
     } else {
       // Desktop fallback: PDF download
@@ -143,7 +148,7 @@ async function handleShare() {
         </header>
 
         <div className="invoice-title-bar">
-          <h1 className="invoice-title">Tax Invoice</h1>
+          <h1 className="invoice-title">{isEstimate ? 'Estimate' : 'Tax Invoice'}</h1>
         </div>
 
         {/* Parties Details */}
@@ -157,8 +162,8 @@ async function handleShare() {
             {invoice.partyPhone && <p className="invoice-meta">Contact No.: {invoice.partyPhone}</p>}
           </div>
           <div className="party-box align-right">
-            <span className="party-label">Invoice Details</span>
-            <p className="invoice-meta"><strong>Invoice No.:</strong> {invoice.invoiceNo || invoice.invoiceNumber || '-'}</p>
+            <span className="party-label">{docLabel} Details</span>
+            <p className="invoice-meta"><strong>{docLabel} No.:</strong> {docNo}</p>
             <p className="invoice-meta"><strong>Date:</strong> {invoice.date || new Date().toLocaleDateString()}</p>
           </div>
         </div>
@@ -230,16 +235,18 @@ async function handleShare() {
               <span>Grand Total</span>
               <span>{formatCurrency(invoice.total)}</span>
             </div>
-            {paid > 0 && (
+            {!isEstimate && paid > 0 && (
               <div className="summary-row text-success">
                 <span>Amount Paid</span>
                 <span>-{formatCurrency(paid)}</span>
               </div>
             )}
-            <div className="summary-row balance-due">
-              <span>Balance Due</span>
-              <span>{formatCurrency(balance)}</span>
-            </div>
+            {!isEstimate && (
+              <div className="summary-row balance-due">
+                <span>Balance Due</span>
+                <span>{formatCurrency(balance)}</span>
+              </div>
+            )}
           </div>
         </div>
 

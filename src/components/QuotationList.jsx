@@ -5,7 +5,7 @@ function formatCurrency(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 }
 
-export default function QuotationList({ onCreateNew, onConvert, onEdit, readOnly = false, canConvert = true }) {
+export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, readOnly = false, canConvert = true }) {
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -248,8 +248,14 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, readOnly
                       <td style={{ borderBottom: '1px solid #eaedf1', padding: '16px', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <button
+                              className="link-btn"
+                              onClick={(e) => { e.stopPropagation(); onView?.(q.id); }}
+                            >
+                              View / Share
+                            </button>
                             {readOnly ? (
-                              <button className="link-btn" onClick={(e) => handleEdit(q.id, e)}>View</button>
+                              <button className="link-btn" onClick={(e) => handleEdit(q.id, e)}>Edit</button>
                             ) : (
                               <>
                                 {canConvert && (q.status === 'Open' ? (
