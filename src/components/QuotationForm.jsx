@@ -528,11 +528,12 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
                   )}
                 </td>
                 <td className="col-center">{totals.qty || ''}</td>
-                <td></td>
-                <td></td>
-                <td className="col-right">{totals.discount > 0 ? totals.discount.toFixed(2) : '0'}</td>
-                <td className="col-right">{totals.tax > 0 ? totals.tax.toFixed(2) : ''}</td>
-                <td className="col-right">{finalTotal.toFixed(2)}</td>
+                <td></td>{/* UNIT */}
+                <td></td>{/* PRICE/UNIT */}
+                <td></td>{/* DISC % */}
+                <td className="col-right">{totals.discount > 0 ? totals.discount.toFixed(2) : '0'}</td>{/* DISC ₹ */}
+                <td className="col-right">{totals.tax > 0 ? totals.tax.toFixed(2) : ''}</td>{/* TAX */}
+                <td className="col-right">{finalTotal.toFixed(2)}</td>{/* AMOUNT */}
                 <td></td>
               </tr>
             </tfoot>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Store } from '../utils/storage';
 import DateRangePicker, { toYMD } from './DateRangePicker';
+import { generateSalesReportPDF } from '../utils/salesReport';
 
 function formatCurrency(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
@@ -136,6 +137,21 @@ export default function InvoiceList({ onCreateNew, onView, onEdit, readOnly = fa
   const total = filteredInvoices.reduce((sum, i) => sum + Number(i.total || 0), 0);
   const paid = filteredInvoices.reduce((sum, i) => sum + Number(i.paidAmount || 0), 0);
   const due = total - paid;
+
+  async function handleReportPDF(detailed) {
+    if (filteredInvoices.length === 0) {
+      alert('Is range me koi sale nahi hai.');
+      return;
+    }
+    const biz = await Store.getBusinessSettings();
+    await generateSalesReportPDF({
+      invoices: filteredInvoices,
+      fromDate,
+      toDate,
+      businessName: biz?.name || '',
+      detailed,
+    });
+  }
 
   async function handleMarkPaid(id, e) {
     e.stopPropagation();
@@ -281,6 +297,8 @@ export default function InvoiceList({ onCreateNew, onView, onEdit, readOnly = fa
             <button className="table-icon-btn" onClick={() => setShowSearch(!showSearch)} title="Search"><SearchIcon /></button>
             <button className="table-icon-btn" title="Chart view" disabled><ChartIcon /></button>
             <button className="table-icon-btn xls-icon" title="Export to Excel" disabled>XLS</button>
+            <button className="table-icon-btn xls-icon" title="Day-wise summary PDF" onClick={() => handleReportPDF(false)}>PDF</button>
+            <button className="table-icon-btn xls-icon" title="Day-wise detailed PDF" onClick={() => handleReportPDF(true)}>PDF+</button>
             <button className="table-icon-btn" title="Print" onClick={() => window.print()}><PrintIcon /></button>
           </div>
         </div>

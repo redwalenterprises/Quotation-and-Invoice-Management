@@ -159,9 +159,7 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, readOnly
     <div className="page">
       <div className="page-header">
         <h2>Estimate/Quotation <span className="header-dropdown-icon">⌄</span></h2>
-          {!readOnly && (
-            <button className="btn btn-primary" onClick={onCreateNew}>+ Add Estimate</button>
-          )}
+          <button className="btn btn-primary" onClick={onCreateNew}>+ Add Estimate</button>
       </div>
 
       <div className="filter-bar">

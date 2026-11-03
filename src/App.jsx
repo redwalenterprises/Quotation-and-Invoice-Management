@@ -10,14 +10,15 @@ import { Store } from './utils/storage';
 import { supabase } from './utils/supabaseClient';
 import './App.css';
 import { isViewer } from './utils/roles';
+import Reports from './components/Reports';
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { key: 'quotation', label: 'Estimate', icon: '📝' },
   { key: 'invoice', label: 'Sales', icon: '🧾' },
+  { key: 'quotation', label: 'Estimate', icon: '📝' },
+  { key: 'reports', label: 'Reports', icon: '📑' },
 ];
 
-const BOTTOM_TAB_ITEMS = NAV_ITEMS;
 
 export default function App() {
   const [session, setSession] = useState(undefined); 
@@ -53,6 +54,7 @@ export default function App() {
   }
 
   const readOnly = isViewer(session);
+  const navItems = readOnly ? NAV_ITEMS.filter(i => i.key !== 'reports') : NAV_ITEMS;
   const activeLabel = NAV_ITEMS.find(item => item.key === activeNav)?.label || 'BizManager';
 
   function renderContent() {
@@ -112,6 +114,10 @@ export default function App() {
     if (activeNav === 'dashboard') {
       return <Dashboard readOnly={readOnly}/>;
     }
+    
+    if (activeNav === 'reports' && !readOnly) {
+      return <Reports />;
+    }
 
     return <div className="page"><p className="text-muted">Coming soon.</p></div>;
   }
@@ -155,7 +161,7 @@ export default function App() {
           </button>
         </div>
         <nav className="sidebar-nav">
-          {NAV_ITEMS.map(item => (
+          {navItems.map(item => (
             <button
               key={item.key}
               className={`nav-item ${activeNav === item.key ? 'active' : ''}`}
@@ -175,7 +181,7 @@ export default function App() {
       <main className="main">{renderContent()}</main>
 
       <nav className="bottom-tab-bar">
-        {BOTTOM_TAB_ITEMS.map(item => (
+        {navItems.map(item => (
           <button
             key={item.key}
             className={`bottom-tab-item ${activeNav === item.key ? 'active' : ''}`}
