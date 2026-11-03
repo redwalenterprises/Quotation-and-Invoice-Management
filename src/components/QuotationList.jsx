@@ -5,7 +5,7 @@ function formatCurrency(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 }
 
-export default function QuotationList({ onCreateNew, onConvert, onEdit, readOnly = false }) {
+export default function QuotationList({ onCreateNew, onConvert, onEdit, readOnly = false, canConvert = true }) {
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -43,7 +43,7 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, readOnly
 
   async function handleConvert(id, e) {
     e.stopPropagation();
-    if (readOnly) return;  
+    if (readOnly || !canConvert) return;
     try {
       await Store.convertToInvoice(id);
       await loadData();
@@ -252,7 +252,7 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, readOnly
                               <button className="link-btn" onClick={(e) => handleEdit(q.id, e)}>View</button>
                             ) : (
                               <>
-                                {q.status === 'Open' ? (
+                                {canConvert && (q.status === 'Open' ? (
                                   <button className="link-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#a0a0a0', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} onClick={(e) => handleConvert(q.id, e)}>
                                     Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                                   </button>
@@ -260,7 +260,7 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, readOnly
                                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#c0c0c0', fontSize: '13px' }}>
                                     Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                                   </span>
-                                )}
+                                ))}
                                 <button className="link-btn" onClick={(e) => handleEdit(q.id, e)}>Edit</button>
                                 <button className="link-btn" style={{ color: 'var(--danger, #EB5757)' }} onClick={(e) => handleDelete(q.id, e)}>Delete</button>
                               </>

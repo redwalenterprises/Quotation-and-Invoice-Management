@@ -64,8 +64,8 @@ export default function App() {
           <QuotationForm
             mode="quotation"
             editingId={editingId}
-            // Employee (viewer) naya estimate bana sakta hai, par purana estimate sirf dekh sakta hai
-            readOnly={readOnly && editingId !== null}
+            // Employee (viewer) estimates me add/edit/delete kar sakta hai
+            readOnly={false}
             onCancel={() => { setView('list'); setEditingId(null); }}
             onSaved={() => { setView('list'); setEditingId(null); }}
           />
@@ -73,7 +73,8 @@ export default function App() {
       }
       return (
         <QuotationList
-          readOnly={readOnly}
+          readOnly={false}
+          canConvert={!readOnly}
           onCreateNew={() => { setEditingId(null); setView('form'); }}
           onEdit={(id) => { setEditingId(id); setView('form'); }}
           onConvert={() => goToNav('invoice')}
