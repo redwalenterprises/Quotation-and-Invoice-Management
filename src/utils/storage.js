@@ -50,11 +50,12 @@ export const Store = {
     }
     if (data.invoices) {
       for (const inv of data.invoices) {
-        await supabase.from('invoices').upsert({
+        const { error } = await supabase.from('invoices').upsert({
           id: inv.id, invoice_no: inv.invoiceNo, quotation_id: inv.quotationId,
           party_name: inv.partyName, date: inv.date, total: inv.total,
           payment_status: inv.paymentStatus, paid_amount: inv.paidAmount, data: inv,
         });
+        if (error) throw error;
       }
     }
     if (data.business) {
