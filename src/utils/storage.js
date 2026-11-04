@@ -41,10 +41,11 @@ export const Store = {
     }
     if (data.quotations) {
       for (const q of data.quotations) {
-        await supabase.from('quotations').upsert({
+        const { error } = await supabase.from('quotations').upsert({
           id: q.id, ref_no: q.refNo, status: q.status, party_name: q.partyName,
           date: q.date, total: q.total, data: q,
         });
+        if (error) throw error;
       }
     }
     if (data.invoices) {
@@ -89,23 +90,24 @@ export const Store = {
         .eq('id', quotation.id)
         .maybeSingle();
       const merged = { ...existing?.data, ...quotation };
-      await supabase.from('quotations').update({
+      const { error: updateError } = await supabase.from('quotations').update({
         ref_no: merged.refNo, status: merged.status, party_name: merged.partyName,
         date: merged.date, total: merged.total, data: merged,
       }).eq('id', quotation.id);
+      if (updateError) throw updateError;
       return merged;
     } else {
-      const { count } = await supabase
-        .from('quotations')
-        .select('*', { count: 'exact', head: true });
+      const { data: refRows } = await supabase.from('quotations').select('ref_no');
+      const maxRef = (refRows || []).reduce((m, r) => Math.max(m, Number(r.ref_no) || 0), 0);
       quotation.id = generateId();
-      quotation.refNo = (count || 0) + 1;
+      quotation.refNo = maxRef + 1;
       quotation.status = 'Open';
-      await supabase.from('quotations').insert({
+      const { error: insertError } = await supabase.from('quotations').insert({
         id: quotation.id, ref_no: quotation.refNo, status: quotation.status,
         party_name: quotation.partyName, date: quotation.date, total: quotation.total,
         data: quotation,
       });
+      if (insertError) throw insertError;
       return quotation;
     }
   },

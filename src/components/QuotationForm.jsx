@@ -3,7 +3,7 @@ import { Store } from '../utils/storage';
 import { rowCalc } from '../utils/calculations';
 
 const UNITS = ['NONE', 'PCS', 'KG', 'BOX', 'LTR', 'MTR'];
-const TAX_RATES = ['NONE', 'GST@18%'];
+const TAX_RATES = ['NONE', 'GST@12%', 'GST@18%'];
 
 function emptyRow() {
   return {
@@ -205,7 +205,7 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
       onSaved?.(saved);
     } catch (error) {
       console.error('Save failed:', error);
-      alert('Error saving data. Please try again.');
+      alert('Error saving data: ' + (error?.message || 'Please try again.'));
     } finally {
       setSaving(false);
     }
