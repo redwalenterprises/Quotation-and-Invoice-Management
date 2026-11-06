@@ -48,6 +48,7 @@ const COLUMNS = [
   { label: 'Date', key: 'date' },
   { label: 'Invoice no', key: 'invoiceNo' },
   { label: 'Party Name', key: 'partyName' },
+  { label: 'Phone', key: 'partyPhone' },
   { label: 'Transaction', key: 'transaction' },
   { label: 'Payment Type', key: 'paymentType' },
   { label: 'Amount', key: 'total' },
@@ -118,7 +119,13 @@ export default function InvoiceList({ onCreateNew, onView, onEdit, readOnly = fa
   }
 
   const filteredInvoices = invoices.filter(inv => {
-    const matchesSearch = inv.partyName?.toLowerCase().includes(search.toLowerCase());
+    const q = search.trim().toLowerCase();
+    const qDigits = q.replace(/\D/g, '');
+    const phoneDigits = String(inv.partyPhone ?? '').replace(/\D/g, '');
+    const matchesSearch = !q ||
+      String(inv.partyName ?? '').toLowerCase().includes(q) ||
+      String(inv.invoiceNo ?? '').includes(q) ||
+      (qDigits && phoneDigits.includes(qDigits));
     const matchesFilters = Object.entries(filters).every(([key, value]) => {
       if (!value) return true;
       let invValue = inv[key];
@@ -307,7 +314,7 @@ export default function InvoiceList({ onCreateNew, onView, onEdit, readOnly = fa
           <input
             type="text"
             className="table-search-input"
-            placeholder="Search party name..."
+            placeholder="Search name, phone or invoice no..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             autoFocus
@@ -336,6 +343,7 @@ export default function InvoiceList({ onCreateNew, onView, onEdit, readOnly = fa
                       <td>{inv.date?.split('-').reverse().join('/')}</td>
                       <td>{inv.invoiceNo}</td>
                       <td>{inv.partyName}</td>
+                      <td>{inv.partyPhone}</td>
                       <td>Sale</td>
                       <td>{inv.paymentType || 'Cash'}</td>
                       <td className="col-right">{formatCurrency(inv.total)}</td>

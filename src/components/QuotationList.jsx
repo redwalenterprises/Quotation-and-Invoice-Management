@@ -12,6 +12,7 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
   // NAYA: Excel-like filters ki state
   const [filters, setFilters] = useState({});
   const [activeFilterPopup, setActiveFilterPopup] = useState(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     loadData();
@@ -68,10 +69,18 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
 
   // NAYA: Data filter karne ka logic (Excel jaisa)
   const filteredQuotations = quotations.filter(q => {
+    const s = search.trim().toLowerCase();
+    const sDigits = s.replace(/\D/g, '');
+    const phoneDigits = String(q.partyPhone ?? '').replace(/\D/g, '');
+    const matchesSearch = !s ||
+      String(q.partyName ?? '').toLowerCase().includes(s) ||
+      String(q.refNo ?? '').toLowerCase().includes(s) ||
+      (sDigits && phoneDigits.includes(sDigits));
+    if (!matchesSearch) return false;
+
     return Object.entries(filters).every(([key, value]) => {
-      if (!value) return true; // Agar us column ka koi filter nahi hai, toh pass hone do
-      
-      // Amount/Balance ko theek se filter karne ke liye
+      if (!value) return true;
+
       let qValue = q[key];
       if (key === 'balance') {
         qValue = q.status === 'Converted' ? 0 : q.total;
@@ -207,6 +216,13 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
           </svg>
         </div>
 
+        <input
+          type="text"
+          className="table-search-input"
+          placeholder="Search name, phone or estimate no..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
         {quotations.length === 0 ? (
           <div className="empty-state">No estimates yet. Create your first estimate.</div>
         ) : (
