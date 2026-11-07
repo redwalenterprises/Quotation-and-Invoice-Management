@@ -64,13 +64,14 @@ export const Store = {
   },
 
   // ============ QUOTATIONS ============
-  async getQuotations() {
+  async getQuotations(includeCancelled = false) {
     const { data, error } = await supabase
       .from('quotations')
       .select('data')
       .order('created_at', { ascending: false });
     if (error) { console.error(error); return []; }
-    return data.map(r => r.data);
+    const all = data.map(r => r.data);
+    return includeCancelled ? all : all.filter(q => !q.cancelled);
   },
 
   async getQuotation(id) {
@@ -175,13 +176,14 @@ export const Store = {
   },
 
   // ============ INVOICES ============
-  async getInvoices() {
+  async getInvoices(includeCancelled = false) {
     const { data, error } = await supabase
       .from('invoices')
       .select('data')
       .order('created_at', { ascending: false });
     if (error) { console.error(error); return []; }
-    return data.map(r => r.data);
+    const all = data.map(r => r.data);
+    return includeCancelled ? all : all.filter(i => !i.cancelled);
   },
 
   async getInvoice(id) {
@@ -248,6 +250,45 @@ export const Store = {
 
   async deleteInvoice(id) {
     await supabase.from('invoices').delete().eq('id', id);
+  },
+
+    // ============ CANCEL / RESTORE ============
+  async cancelInvoice(id, reason = '') {
+    const { data: existing } = await supabase.from('invoices').select('data').eq('id', id).maybeSingle();
+    if (!existing) return;
+    const updated = { ...existing.data, cancelled: true, cancelReason: reason, cancelledAt: new Date().toISOString() };
+    const { error } = await supabase.from('invoices').update({ data: updated }).eq('id', id);
+    if (error) throw error;
+  },
+
+  async restoreInvoice(id) {
+    const { data: existing } = await supabase.from('invoices').select('data').eq('id', id).maybeSingle();
+    if (!existing) return;
+    const updated = { ...existing.data };
+    delete updated.cancelled;
+    delete updated.cancelReason;
+    delete updated.cancelledAt;
+    const { error } = await supabase.from('invoices').update({ data: updated }).eq('id', id);
+    if (error) throw error;
+  },
+
+  async cancelQuotation(id, reason = '') {
+    const { data: existing } = await supabase.from('quotations').select('data').eq('id', id).maybeSingle();
+    if (!existing) return;
+    const updated = { ...existing.data, cancelled: true, cancelReason: reason, cancelledAt: new Date().toISOString() };
+    const { error } = await supabase.from('quotations').update({ data: updated }).eq('id', id);
+    if (error) throw error;
+  },
+
+  async restoreQuotation(id) {
+    const { data: existing } = await supabase.from('quotations').select('data').eq('id', id).maybeSingle();
+    if (!existing) return;
+    const updated = { ...existing.data };
+    delete updated.cancelled;
+    delete updated.cancelReason;
+    delete updated.cancelledAt;
+    const { error } = await supabase.from('quotations').update({ data: updated }).eq('id', id);
+    if (error) throw error;
   },
 
   // ============ PARTIES ============

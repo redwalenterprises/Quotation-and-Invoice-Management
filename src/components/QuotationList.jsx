@@ -1,8 +1,34 @@
 import { useState, useEffect } from 'react';
 import { Store } from '../utils/storage';
+import DateRangePicker, { toYMD } from './DateRangePicker';
 
 function formatCurrency(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+}
+
+function getMonthRange(type) {
+  const today = new Date();
+  let from, to;
+  if (type === 'Last Month') {
+    from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    to = new Date(today.getFullYear(), today.getMonth(), 0);
+  } else if (type === 'This Year') {
+    from = new Date(today.getFullYear(), 0, 1);
+    to = new Date(today.getFullYear(), 11, 31);
+  } else {
+    from = new Date(today.getFullYear(), today.getMonth(), 1);
+    to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  }
+  return { from: toYMD(from), to: toYMD(to) };
+}
+
+const statusOf = (q) => (q.cancelled ? 'Cancelled' : q.status);
+const balanceOf = (q) => (q.cancelled || q.status === 'Converted' ? 0 : q.total);
+
+function shiftDays(ymd, n) {
+  const d = new Date(ymd + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return toYMD(d);
 }
 
 export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, readOnly = false, canConvert = true }) {
@@ -13,6 +39,10 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
   const [filters, setFilters] = useState({});
   const [activeFilterPopup, setActiveFilterPopup] = useState(null);
   const [search, setSearch] = useState('');
+  const [dateRangeType, setDateRangeType] = useState('This Month');
+  const defaultRange = getMonthRange('This Month');
+  const [fromDate, setFromDate] = useState(defaultRange.from);
+  const [toDate, setToDate] = useState(defaultRange.to);
 
   useEffect(() => {
     loadData();
@@ -31,16 +61,10 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
 
   async function loadData() {
     setLoading(true);
-    const data = await Store.getQuotations();
+    const data = await Store.getQuotations(true);
     setQuotations(data);
     setLoading(false);
   }
-
-  const total = quotations.reduce((sum, q) => sum + Number(q.total || 0), 0);
-  const converted = quotations
-    .filter(q => q.status === 'Converted')
-    .reduce((sum, q) => sum + Number(q.total || 0), 0);
-  const open = total - converted;
 
   async function handleConvert(id, e) {
     e.stopPropagation();
@@ -52,6 +76,23 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
     } catch (err) {
       alert('Could not convert to invoice: ' + (err?.message || 'Unknown error'));
     }
+  }
+
+  async function handleCancel(id, e) {
+    e.stopPropagation();
+    if (readOnly) return;
+    const q = quotations.find(x => x.id === id);
+    const reason = window.prompt(`Estimate #${q?.refNo} cancel karna hai?\nReason likho (optional):`);
+    if (reason === null) return;
+    await Store.cancelQuotation(id, reason.trim());
+    await loadData();
+  }
+
+  async function handleRestore(id, e) {
+    e.stopPropagation();
+    if (readOnly) return;
+    await Store.restoreQuotation(id);
+    await loadData();
   }
 
   async function handleDelete(id, e) {
@@ -69,6 +110,8 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
 
   // NAYA: Data filter karne ka logic (Excel jaisa)
   const filteredQuotations = quotations.filter(q => {
+    const matchesDateRange = (!fromDate || q.date >= fromDate) && (!toDate || q.date <= toDate);
+    if (!matchesDateRange) return false;
     const s = search.trim().toLowerCase();
     const sDigits = s.replace(/\D/g, '');
     const phoneDigits = String(q.partyPhone ?? '').replace(/\D/g, '');
@@ -82,12 +125,44 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
       if (!value) return true;
 
       let qValue = q[key];
+      if (key === 'status') qValue = statusOf(q);
       if (key === 'balance') {
-        qValue = q.status === 'Converted' ? 0 : q.total;
+        qValue = balanceOf(q);
       }
       return String(qValue).toLowerCase() === String(value).toLowerCase();
     });
   });
+
+  // Cancelled estimates list me dikhte hain, par totals me count nahi hote
+  const activeQuotations = filteredQuotations.filter(q => !q.cancelled);
+
+  const total = activeQuotations.reduce((sum, q) => sum + Number(q.total || 0), 0);
+  const converted = activeQuotations
+    .filter(q => q.status === 'Converted')
+    .reduce((sum, q) => sum + Number(q.total || 0), 0);
+  const open = total - converted;
+
+  // Growth: selected range ka total vs usse theek pehle wali same-length period
+  let growth = null;
+  if (fromDate && toDate) {
+    const days = Math.round((new Date(toDate + 'T00:00:00') - new Date(fromDate + 'T00:00:00')) / 86400000) + 1;
+    const prevTo = shiftDays(fromDate, -1);
+    const prevFrom = shiftDays(fromDate, -days);
+    const sumIn = (a, b) => quotations
+      .filter(q => !q.cancelled && q.date >= a && q.date <= b)
+      .reduce((sum, q) => sum + Number(q.total || 0), 0);
+    const cur = sumIn(fromDate, toDate);
+    const prev = sumIn(prevFrom, prevTo);
+    if (prev > 0) growth = ((cur - prev) / prev) * 100;
+  }
+
+  function handleDateRangeTypeChange(value) {
+    setDateRangeType(value);
+    if (value === 'Custom') return;
+    const { from, to } = getMonthRange(value);
+    setFromDate(from);
+    setToDate(to);
+  }
 
   const clearFilter = (key, e) => {
     e.stopPropagation();
@@ -100,9 +175,9 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
     // Us column ke sabhi unique (ek jaise) values nikalna dropdown ke liye
     let uniqueValues = [];
     if (key === 'balance') {
-      uniqueValues = [...new Set(quotations.map(q => q.status === 'Converted' ? 0 : q.total))].filter(v => v !== undefined);
+      uniqueValues = [...new Set(quotations.map(q => balanceOf(q)))].filter(v => v !== undefined);
     } else {
-      uniqueValues = [...new Set(quotations.map(q => q[key]))].filter(Boolean);
+      uniqueValues = [...new Set(quotations.map(q => (key === 'status' ? statusOf(q) : q[key])))].filter(Boolean);
     }
     
     const isActive = !!filters[key];
@@ -167,28 +242,32 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
   return (
     <div className="page">
       <div className="page-header">
-        <h2>Estimate/Quotation <span className="header-dropdown-icon">⌄</span></h2>
+        <h2>Estimate/Quotation</h2>
           <button className="btn btn-primary" onClick={onCreateNew}>+ Add Estimate</button>
       </div>
 
       <div className="filter-bar">
         <span className="filter-label" style={{ marginRight: '10px', fontWeight: '500' }}>Filter by :</span>
-        <select className="pill-select" defaultValue="This Month">
+        <select
+          className="pill-select"
+          value={dateRangeType}
+          onChange={(e) => handleDateRangeTypeChange(e.target.value)}
+        >
           <option>This Month</option>
           <option>Last Month</option>
           <option>This Year</option>
+          <option>Custom</option>
         </select>
-        
-        <div className="date-range-group" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-          <span className="calendar-icon">📅</span>
-          <input type="date" className="pill-input plain" defaultValue="2026-07-01" />
-          <span className="filter-sep" style={{ textTransform: 'capitalize' }}>To</span>
-          <input type="date" className="pill-input plain" defaultValue="2026-07-31" />
-        </div>
 
-        <select className="pill-select" defaultValue="All Firms">
-          <option>All Firms</option>
-        </select>
+        <DateRangePicker
+          from={fromDate}
+          to={toDate}
+          onChange={({ from, to }) => {
+            setFromDate(from);
+            setToDate(to);
+            setDateRangeType('Custom');
+          }}
+        />
       </div>
 
       <div className="stat-card">
@@ -198,8 +277,10 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
             <p className="stat-value">{formatCurrency(total)}</p>
           </div>
           <div className="stat-growth" style={{ textAlign: 'right' }}>
-            <span className="growth-badge" style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px', fontSize: '12px' }}>0% ↗</span>
-            <div className="growth-text" style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>vs last month</div>
+            <span className="growth-badge" style={{ background: growth === null ? '#f3f4f6' : growth >= 0 ? '#dcfce7' : '#fee2e2', color: growth === null ? '#6b7280' : growth >= 0 ? '#15803d' : '#dc2626', padding: '2px 6px', borderRadius: '4px', fontSize: '12px' }}>
+              {growth === null ? '—' : `${Math.abs(growth).toFixed(0)}% ${growth >= 0 ? '↗' : '↘'}`}
+            </span>
+            <div className="growth-text" style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>vs previous period</div>
           </div>
         </div>
         <p className="stat-sub">
@@ -207,13 +288,8 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
         </p>
       </div>
 
-      <div className="card" style={{ marginTop: '20px' }}>
         <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px' }}>
           <h3>Transactions</h3>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ cursor: 'pointer' }}>
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
         </div>
 
         <input
@@ -250,16 +326,23 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
                   </tr>
                 ) : (
                   filteredQuotations.map(q => (
-                    <tr key={q.id} onClick={() => handleEdit(q.id)} style={{ cursor: 'pointer' }}>
+                    <tr key={q.id} onClick={() => (q.cancelled ? onView?.(q.id) : handleEdit(q.id))} style={{ cursor: 'pointer', ...(q.cancelled ? { color: '#9ca3af' } : {}) }}>
                       <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>{q.date}</td>
                       <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>{q.refNo}</td>
                       <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>{q.partyName}</td>
                       <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px', textAlign: 'right' }}>{formatCurrency(q.total)}</td>
-                      <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px', textAlign: 'right' }}>{formatCurrency(q.status === 'Converted' ? 0 : q.total)}</td>
+                      <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px', textAlign: 'right' }}>{formatCurrency(balanceOf(q))}</td>
                       <td style={{ borderBottom: '1px solid #eaedf1', borderRight: '1px solid #eaedf1', padding: '16px' }}>
-                        <span style={{ color: '#2F80ED', textDecoration: 'none' }} className={`status-badge ${q.status === 'Converted' ? 'status-converted' : 'status-open'}`}>
-                          {q.status}
-                        </span>
+                        {q.cancelled ? (
+                          <>
+                            <span className="status-badge" style={{ background: '#e5e7eb', color: '#6b7280' }}>Cancelled</span>
+                            {q.cancelReason && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{q.cancelReason}</div>}
+                          </>
+                        ) : (
+                          <span style={{ color: '#2F80ED', textDecoration: 'none' }} className={`status-badge ${q.status === 'Converted' ? 'status-converted' : 'status-open'}`}>
+                            {q.status}
+                          </span>
+                        )}
                       </td>
                       <td style={{ borderBottom: '1px solid #eaedf1', padding: '16px', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
@@ -274,7 +357,7 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
                               <button className="link-btn" onClick={(e) => handleEdit(q.id, e)}>Edit</button>
                             ) : (
                               <>
-                                {canConvert && (q.status === 'Open' ? (
+                                {canConvert && !q.cancelled && (q.status === 'Open' ? (
                                   <button className="link-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#a0a0a0', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} onClick={(e) => handleConvert(q.id, e)}>
                                     Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                                   </button>
@@ -283,16 +366,17 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
                                     Convert <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                                   </span>
                                 ))}
-                                <button className="link-btn" onClick={(e) => handleEdit(q.id, e)}>Edit</button>
+                                {!q.cancelled && <button className="link-btn" onClick={(e) => handleEdit(q.id, e)}>Edit</button>}
+                                {!q.cancelled && q.status === 'Open' && (
+                                  <button className="link-btn" onClick={(e) => handleCancel(q.id, e)}>Cancel</button>
+                                )}
+                                {q.cancelled && (
+                                  <button className="link-btn" onClick={(e) => handleRestore(q.id, e)}>Restore</button>
+                                )}
                                 <button className="link-btn" style={{ color: 'var(--danger, #EB5757)' }} onClick={(e) => handleDelete(q.id, e)}>Delete</button>
                               </>
                             )}
                           </div>
-                          <svg style={{ cursor: 'pointer', color: '#a0a0a0' }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="1"></circle>
-                            <circle cx="12" cy="5" r="1"></circle>
-                            <circle cx="12" cy="19" r="1"></circle>
-                          </svg>
                         </div>
                       </td>
                     </tr>
@@ -303,6 +387,5 @@ export default function QuotationList({ onCreateNew, onConvert, onEdit, onView, 
           </div>
         )}
       </div>
-    </div>
   );
 }

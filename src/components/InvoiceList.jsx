@@ -1,19 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { Store } from '../utils/storage';
 import DateRangePicker, { toYMD } from './DateRangePicker';
-import { generateSalesReportPDF } from '../utils/salesReport';
 
 function formatCurrency(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 }
 
-function FilterIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <polygon points="4 4 20 4 14 12 14 19 10 21 10 12 4 4" />
-    </svg>
-  );
-}
 
 function SearchIcon() {
   return (
@@ -24,15 +16,6 @@ function SearchIcon() {
   );
 }
 
-function ChartIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="3" y="12" width="4" height="9" />
-      <rect x="10" y="7" width="4" height="14" />
-      <rect x="17" y="3" width="4" height="18" />
-    </svg>
-  );
-}
 
 function PrintIcon() {
   return (
@@ -113,7 +96,7 @@ export default function InvoiceList({ onCreateNew, onView, onEdit, readOnly = fa
   }, []);
   async function loadData() {
     setLoading(true);
-    const data = await Store.getInvoices();
+    const data = await Store.getInvoices(true);
     setInvoices(data);
     setLoading(false);
   }
@@ -141,23 +124,46 @@ export default function InvoiceList({ onCreateNew, onView, onEdit, readOnly = fa
     return matchesSearch && matchesFilters && matchesDateRange;
   });
 
-  const total = filteredInvoices.reduce((sum, i) => sum + Number(i.total || 0), 0);
-  const paid = filteredInvoices.reduce((sum, i) => sum + Number(i.paidAmount || 0), 0);
+  const activeInvoices = filteredInvoices.filter(i => !i.cancelled);
+
+
+  const total = activeInvoices.reduce((sum, i) => sum + Number(i.total || 0), 0);
+  const paid = activeInvoices.reduce((sum, i) => sum + Number(i.paidAmount || 0), 0);
   const due = total - paid;
 
-  async function handleReportPDF(detailed) {
-    if (filteredInvoices.length === 0) {
+  function handleExportCSV() {
+    if (activeInvoices.length === 0) {
       alert('Is range me koi sale nahi hai.');
       return;
     }
-    const biz = await Store.getBusinessSettings();
-    await generateSalesReportPDF({
-      invoices: filteredInvoices,
-      fromDate,
-      toDate,
-      businessName: biz?.name || '',
-      detailed,
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['Date', 'Invoice No', 'Party Name', 'Phone', 'Payment Type', 'Amount', 'Received', 'Balance', 'Status'];
+    const rows = activeInvoices.map(inv => {
+      const total = Number(inv.total || 0);
+      const received = Number(inv.paidAmount || 0);
+      return [
+        inv.date?.split('-').reverse().join('/'),
+        inv.invoiceNo,
+        inv.partyName,
+        inv.partyPhone,
+        inv.paymentType || 'Cash',
+        total,
+        received,
+        total - received,
+        inv.paymentStatus,
+      ];
     });
+    const csv = [header, ...rows].map(r => r.map(esc).join(',')).join('\r\n');
+    // BOM taaki Excel me Hindi/₹ sahi dikhe
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sales_${fromDate || 'start'}_to_${toDate || 'end'}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   async function handleMarkPaid(id, e) {
@@ -167,6 +173,27 @@ export default function InvoiceList({ onCreateNew, onView, onEdit, readOnly = fa
     const invoice = invoices.find(i => i.id === id);
     const remaining = Number(invoice.total || 0) - Number(invoice.paidAmount || 0);
     await Store.recordPayment(id, remaining);
+    await loadData();
+  }
+
+    async function handleCancel(id, e) {
+    e.stopPropagation();
+    setOpenMenuId(null);
+    if (readOnly) return;
+    const inv = invoices.find(i => i.id === id);
+    const received = Number(inv?.paidAmount || 0);
+    const warn = received > 0 ? `\n\nNote: is bill par ${formatCurrency(received)} receive ho chuka hai. Refund alag se handle karna.` : '';
+    const reason = window.prompt(`Bill #${inv?.invoiceNo} cancel karna hai?\nReason likho (optional):${warn}`);
+    if (reason === null) return;
+    await Store.cancelInvoice(id, reason.trim());
+    await loadData();
+  }
+
+  async function handleRestore(id, e) {
+    e.stopPropagation();
+    setOpenMenuId(null);
+    if (readOnly) return;
+    await Store.restoreInvoice(id);
     await loadData();
   }
 
@@ -302,10 +329,7 @@ export default function InvoiceList({ onCreateNew, onView, onEdit, readOnly = fa
           <h3>Transactions</h3>
           <div className="table-toolbar-icons">
             <button className="table-icon-btn" onClick={() => setShowSearch(!showSearch)} title="Search"><SearchIcon /></button>
-            <button className="table-icon-btn" title="Chart view" disabled><ChartIcon /></button>
-            <button className="table-icon-btn xls-icon" title="Export to Excel" disabled>XLS</button>
-            <button className="table-icon-btn xls-icon" title="Day-wise summary PDF" onClick={() => handleReportPDF(false)}>PDF</button>
-            <button className="table-icon-btn xls-icon" title="Day-wise detailed PDF" onClick={() => handleReportPDF(true)}>PDF+</button>
+            <button className="table-icon-btn xls-icon" title="Export to Excel (CSV)" onClick={handleExportCSV}>XLS</button>
             <button className="table-icon-btn" title="Print" onClick={() => window.print()}><PrintIcon /></button>
           </div>
         </div>
@@ -339,7 +363,7 @@ export default function InvoiceList({ onCreateNew, onView, onEdit, readOnly = fa
                 {filteredInvoices.map(inv => {
                   const balance = Number(inv.total || 0) - Number(inv.paidAmount || 0);
                   return (
-                    <tr key={inv.id} onClick={() => (readOnly ? onView?.(inv.id) : onEdit?.(inv.id))} style={{ cursor: 'pointer' }}>
+                    <tr key={inv.id} onClick={() => (readOnly || inv.cancelled ? onView?.(inv.id) : onEdit?.(inv.id))} style={{ cursor: 'pointer', ...(inv.cancelled ? { color: '#9ca3af' } : {}) }}>
                       <td>{inv.date?.split('-').reverse().join('/')}</td>
                       <td>{inv.invoiceNo}</td>
                       <td>{inv.partyName}</td>
@@ -347,14 +371,21 @@ export default function InvoiceList({ onCreateNew, onView, onEdit, readOnly = fa
                       <td>Sale</td>
                       <td>{inv.paymentType || 'Cash'}</td>
                       <td className="col-right">{formatCurrency(inv.total)}</td>
-                      <td className="col-right">{formatCurrency(balance)}</td>
+                      <td className="col-right">{inv.cancelled ? '—' : formatCurrency(balance)}</td>
                       <td>
-                        <span className={`status-badge ${
-                          inv.paymentStatus === 'Paid' ? 'status-converted' :
-                          inv.paymentStatus === 'Partial' ? 'status-partial' : 'status-open'
-                        }`}>
-                          {inv.paymentStatus}
-                        </span>
+                        {inv.cancelled ? (
+                          <>
+                            <span className="status-badge" style={{ background: '#e5e7eb', color: '#6b7280' }}>Cancelled</span>
+                            {inv.cancelReason && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{inv.cancelReason}</div>}
+                          </>
+                        ) : (
+                          <span className={`status-badge ${
+                            inv.paymentStatus === 'Paid' ? 'status-converted' :
+                            inv.paymentStatus === 'Partial' ? 'status-partial' : 'status-open'
+                          }`}>
+                            {inv.paymentStatus}
+                          </span>
+                        )}
                       </td>
                       <td style={{ position: 'relative', textAlign: 'center' }}>
                         <button
@@ -371,12 +402,23 @@ export default function InvoiceList({ onCreateNew, onView, onEdit, readOnly = fa
                             </button>
                             {!readOnly && (
                               <>
-                                <button className="row-menu-item" onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); onEdit?.(inv.id); }}>
-                                  Edit
-                                </button>
-                                {inv.paymentStatus !== 'Paid' && (
+                                {!inv.cancelled && (
+                                  <button className="row-menu-item" onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); onEdit?.(inv.id); }}>
+                                    Edit
+                                  </button>
+                                )}
+                                {!inv.cancelled && inv.paymentStatus !== 'Paid' && (
                                   <button className="row-menu-item" onClick={(e) => handleMarkPaid(inv.id, e)}>
                                     Mark paid
+                                  </button>
+                                )}
+                                {inv.cancelled ? (
+                                  <button className="row-menu-item" onClick={(e) => handleRestore(inv.id, e)}>
+                                    Restore (undo cancel)
+                                  </button>
+                                ) : (
+                                  <button className="row-menu-item" onClick={(e) => handleCancel(inv.id, e)}>
+                                    Cancel sale
                                   </button>
                                 )}
                                 <button className="row-menu-item row-menu-danger" onClick={(e) => handleDelete(inv.id, e)}>

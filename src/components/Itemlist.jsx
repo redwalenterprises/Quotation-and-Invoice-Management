@@ -3,7 +3,6 @@ import { Store } from '../utils/storage';
 
 const UNITS = ['NONE', 'PCS', 'KG', 'BOX', 'LTR', 'MTR'];
 const TAX_RATES = ['NONE', 'GST 5%', 'GST 12%', 'GST 18%', 'GST 28%'];
-const TABS = ['Products', 'Services', 'Category', 'Units'];
 
 function emptyItem() {
   return {
@@ -122,14 +121,6 @@ export default function ItemList() {
       <div className="party-page-header">
         <h2>Items</h2>
         <button className="btn btn-primary" onClick={openAdd}>+ Add item</button>
-      </div>
-
-      <div className="item-tabs">
-        {TABS.map((tab, i) => (
-          <button key={tab} className={`item-tab ${i === 0 ? 'active' : ''}`} disabled={i !== 0}>
-            {tab}
-          </button>
-        ))}
       </div>
 
       <div className="party-split">
