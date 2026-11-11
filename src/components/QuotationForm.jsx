@@ -42,7 +42,7 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
   );
   const [showDescription, setShowDescription] = useState(false);
   const [description, setDescription] = useState('');
-  const [roundOff, setRoundOff] = useState(true);
+  const [roundOffInput, setRoundOffInput] = useState('');
   const [recordReceived, setRecordReceived] = useState(false);
   const [receivedAmount, setReceivedAmount] = useState('');
 
@@ -88,10 +88,16 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
             setDescription(existing.description || '');
             setShowTerms(Boolean(existing.terms));
             setShowDescription(Boolean(existing.description));
-            setRows(
-              existing.items && existing.items.length > 0
-                ? existing.items
-                : [emptyRow(), emptyRow()]
+            const loadedRows = existing.items && existing.items.length > 0
+              ? existing.items
+              : [emptyRow(), emptyRow()];
+            setRows(loadedRows);
+            const itemsSum = loadedRows.reduce((sum, r) => sum + rowCalc(r).amount, 0);
+            const savedRoundOff = Number(existing.total) - itemsSum;
+            setRoundOffInput(
+              Number.isFinite(savedRoundOff) && Math.abs(savedRoundOff) >= 0.005
+                ? savedRoundOff.toFixed(2)
+                : ''
             );
             if (mode === 'invoice' && Number(existing.paidAmount) > 0) {
               setRecordReceived(true);
@@ -156,7 +162,7 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
   );
 
   const rawTotal = totals.amount;
-  const displayedRoundOff = roundOff ? Math.round(rawTotal) - rawTotal : 0;
+  const displayedRoundOff = Number(roundOffInput) || 0;
   const finalTotal = rawTotal + displayedRoundOff;
   const receivedValue = recordReceived ? (Number(receivedAmount) || 0) : 0;
   const balanceValue = finalTotal - receivedValue;
@@ -533,7 +539,7 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
                 <td></td>{/* DISC % */}
                 <td className="col-right">{totals.discount > 0 ? totals.discount.toFixed(2) : '0'}</td>{/* DISC ₹ */}
                 <td className="col-right">{totals.tax > 0 ? totals.tax.toFixed(2) : ''}</td>{/* TAX */}
-                <td className="col-right">{finalTotal.toFixed(2)}</td>{/* AMOUNT */}
+                <td className="col-right">{totals.amount.toFixed(2)}</td>{/* AMOUNT */}
                 <td></td>
               </tr>
             </tfoot>
@@ -598,11 +604,16 @@ export default function QuotationForm({ onSaved, onCancel, mode = 'quotation', e
 
           <div className="total-controls total-controls-stacked">
             <div className="total-controls-row">
-              <label className="roundoff-toggle">
-                <input type="checkbox" checked={roundOff} onChange={e => setRoundOff(e.target.checked)} />
-                Round off
-              </label>
-              <input type="text" className="roundoff-input" value={displayedRoundOff.toFixed(2)} readOnly />
+              <span className="meta-label">Round off</span>
+              <input
+                type="number"
+                step="0.01"
+                className="roundoff-input"
+                value={roundOffInput}
+                onChange={e => setRoundOffInput(e.target.value)}
+                readOnly={readOnly}
+                placeholder="0.00"
+              />
               <span className="meta-label">Total</span>
               <input type="text" className="total-input" value={finalTotal.toFixed(2)} readOnly />
             </div>
